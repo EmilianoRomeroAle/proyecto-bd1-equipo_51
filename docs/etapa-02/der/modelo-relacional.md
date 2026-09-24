@@ -1,12 +1,3 @@
-# Modelo Relacional - EmpresaHardware
-
-## Proyecto Integrador — Bases de Datos I (Año 2026)
-**Equipo de Proyecto:** Equipo 51  
-**Dominio:** Sistema de Gestión Comercial e Inventario de Hardware  
-**Responsable:** Nuñez Tobias Nahuel (DNI: 46316154)  
-**Repositorio:** https://github.com/EmilianoRomeroAle/proyecto-bd1-equipo_51  
-
----
 
 ## 1. Esquema Relacional de Tablas (Notación Estándar)
 
