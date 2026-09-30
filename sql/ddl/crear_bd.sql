@@ -104,14 +104,93 @@ CREATE TABLE PRODUCTO
 GO
 
 -- ====================================================================
--- ESPACIO ASIGNADO A INTEGRANTES 2 Y 3:
--- (A continuación se incorporan las tablas transaccionales, FKs y restricciones CHECK/DEFAULT)
--- 
--- Integrante 2 agregará:
---   - Tabla VENTA (con FK hacia CLIENTE)
---   - Tabla DETALLE_VENTA (con FKs hacia VENTA y PRODUCTO, PK compuesta)
---   - Tabla PAGA_CON (con FKs hacia VENTA y METODO_PAGO, PK compuesta)
---   - FK de PRODUCTO hacia CATEGORIA (ALTER TABLE PRODUCTO ADD CONSTRAINT FK_PRODUCTO_CATEGORIA...)
+-- BLOQUE 2: RELACIONES Y TABLAS TRANSACCIONALES (INTEGRANTE 2 - Romero Alegre Ubaldo Diego Emiliano)
+-- ====================================================================
+-- --------------------------------------------------------------------
+-- 1. CLAVE FORÁNEA EN TABLA MAESTRA DEPENDIENTE
+-- Vinculación de PRODUCTO con CATEGORIA (RN.05)
+-- --------------------------------------------------------------------
+ALTER TABLE PRODUCTO
+    ADD CONSTRAINT FK_PRODUCTO_CATEGORIA 
+    FOREIGN KEY (codigo_categoria) REFERENCES CATEGORIA (codigo_categoria)
+    ON UPDATE CASCADE 
+    ON DELETE NO ACTION; -- Nota: En T-SQL / SQL Server, NO ACTION equivale al comportamiento RESTRICT
+GO
+
+-- --------------------------------------------------------------------
+-- 2. TABLA TRANSACCIONAL: VENTA
+-- Registro de cabecera de transacciones comerciales (RN.01, RN.04)
+-- --------------------------------------------------------------------
+CREATE TABLE VENTA
+(
+    codigo_venta INT NOT NULL,
+    fecha_hora DATETIME NOT NULL,
+    monto_total DECIMAL(12, 2) NOT NULL,
+    dni_cuit VARCHAR(20) NOT NULL,
+
+    -- Clave Primaria Simple
+    CONSTRAINT PK_VENTA PRIMARY KEY (codigo_venta),
+
+    -- Clave Foránea hacia CLIENTE (RN.01)
+    CONSTRAINT FK_VENTA_CLIENTE FOREIGN KEY (dni_cuit) 
+        REFERENCES CLIENTE (dni_cuit)
+        ON UPDATE CASCADE 
+        ON DELETE NO ACTION
+);
+GO
+
+-- --------------------------------------------------------------------
+-- 3. TABLA INTERMEDIA (M:N): DETALLE_VENTA
+-- Relación entre VENTA y PRODUCTO con cantidad y precio pactado (RN.02, RN.08)
+-- --------------------------------------------------------------------
+CREATE TABLE DETALLE_VENTA
+(
+    codigo_venta INT NOT NULL,
+    sku VARCHAR(50) NOT NULL,
+    cantidad INT NOT NULL,
+    precio_unitario DECIMAL(12, 2) NOT NULL,
+
+    -- Clave Primaria Compuesta
+    CONSTRAINT PK_DETALLE_VENTA PRIMARY KEY (codigo_venta, sku),
+
+    -- Claves Foráneas con Reglas de Integridad Referencial
+    CONSTRAINT FK_DETALLE_VENTA_VENTA FOREIGN KEY (codigo_venta) 
+        REFERENCES VENTA (codigo_venta)
+        ON UPDATE CASCADE 
+        ON DELETE CASCADE,
+        
+    CONSTRAINT FK_DETALLE_VENTA_PRODUCTO FOREIGN KEY (sku) 
+        REFERENCES PRODUCTO (sku)
+        ON UPDATE CASCADE 
+        ON DELETE NO ACTION
+);
+GO
+
+-- --------------------------------------------------------------------
+-- 4. TABLA INTERMEDIA (M:N): PAGA_CON
+-- Relación entre VENTA y METODO_PAGO para desglose de cobros (RN.04)
+-- --------------------------------------------------------------------
+CREATE TABLE PAGA_CON
+(
+    codigo_venta INT NOT NULL,
+    codigo_metodo INT NOT NULL,
+    monto DECIMAL(12, 2) NOT NULL,
+
+    -- Clave Primaria Compuesta
+    CONSTRAINT PK_PAGA_CON PRIMARY KEY (codigo_venta, codigo_metodo),
+
+    -- Claves Foráneas con Reglas de Integridad Referencial
+    CONSTRAINT FK_PAGA_CON_VENTA FOREIGN KEY (codigo_venta) 
+        REFERENCES VENTA (codigo_venta)
+        ON UPDATE CASCADE 
+        ON DELETE CASCADE,
+        
+    CONSTRAINT FK_PAGA_CON_METODO_PAGO FOREIGN KEY (codigo_metodo) 
+        REFERENCES METODO_PAGO (codigo_metodo)
+        ON UPDATE CASCADE 
+        ON DELETE NO ACTION
+);
+GO
 --
 -- Integrante 3 agregará:
 --   - Restricciones CHECK (precio_lista > 0, stock_actual >= 0, etc.)
