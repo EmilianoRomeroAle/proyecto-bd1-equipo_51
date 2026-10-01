@@ -191,8 +191,60 @@ CREATE TABLE PAGA_CON
         ON DELETE NO ACTION
 );
 GO
---
--- Integrante 3 agregará:
---   - Restricciones CHECK (precio_lista > 0, stock_actual >= 0, etc.)
---   - Restricciones DEFAULT (fecha_hora, estados, stock_reservado = 0, etc.)
+
 -- ====================================================================
+-- BLOQUE 3: RESTRICCIONES DE DOMINIO Y VALIDACIONES 
+-- Responsable Inicial (Tarea 3): [Nombre del Integrante 3]
+-- ====================================================================
+
+-- --------------------------------------------------------------------
+-- Tabla: CLIENTE
+-- Validaciones de formato para datos de contacto
+-- --------------------------------------------------------------------
+ALTER TABLE CLIENTE
+    ADD CONSTRAINT CHK_CLIENTE_email CHECK (email LIKE '%_@__%.__%');
+GO
+
+-- --------------------------------------------------------------------
+-- Tabla: PRODUCTO
+-- Validaciones de negocio para precios y stock
+-- --------------------------------------------------------------------
+ALTER TABLE PRODUCTO
+    ADD CONSTRAINT CHK_PRODUCTO_precio_lista CHECK (precio_lista > 0),
+        CONSTRAINT CHK_PRODUCTO_stock_actual CHECK (stock_actual >= 0),
+        CONSTRAINT CHK_PRODUCTO_stock_reservado CHECK (stock_reservado >= 0),
+        
+        -- Regla adicional de consistencia: El stock reservado no puede superar al stock físico
+        CONSTRAINT CHK_PRODUCTO_consistencia_stock CHECK (stock_reservado <= stock_actual),
+        
+        -- Valor por defecto para stock reservado al cargar un nuevo producto al catálogo
+        CONSTRAINT DF_PRODUCTO_stock_reservado DEFAULT 0 FOR stock_reservado;
+GO
+
+-- --------------------------------------------------------------------
+-- Tabla: VENTA
+-- Validaciones de montos y automatización de fechas
+-- --------------------------------------------------------------------
+ALTER TABLE VENTA
+    ADD CONSTRAINT CHK_VENTA_monto_total CHECK (monto_total > 0),
+        
+        -- Valor por defecto para registrar la fecha y hora de la transacción automáticamente (T-SQL)
+        CONSTRAINT DF_VENTA_fecha_hora DEFAULT CURRENT_TIMESTAMP FOR fecha_hora;
+GO
+
+-- --------------------------------------------------------------------
+-- Tabla: DETALLE_VENTA
+-- Validaciones sobre las cantidades y precios de los ítems vendidos
+-- --------------------------------------------------------------------
+ALTER TABLE DETALLE_VENTA
+    ADD CONSTRAINT CHK_DETALLE_VENTA_cantidad CHECK (cantidad > 0),
+        CONSTRAINT CHK_DETALLE_VENTA_precio_unitario CHECK (precio_unitario >= 0);
+GO
+
+-- --------------------------------------------------------------------
+-- Tabla: PAGA_CON
+-- Validación sobre los montos parciales o totales abonados por método de pago
+-- --------------------------------------------------------------------
+ALTER TABLE PAGA_CON
+    ADD CONSTRAINT CHK_PAGA_CON_monto CHECK (monto > 0);
+GO
