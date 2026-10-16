@@ -1,89 +1,61 @@
-# Guía de Implementación Física (DDL y DML)
+# Implementación física
 
-## Proyecto Integrador — Bases de Datos I (Año 2026)
-**Equipo de Proyecto:** Equipo 51  
-**Dominio:** Sistema de Gestión Comercial e Inventario de Hardware  
-**Autor:** Nuñez Axel Gabriel  
-**Etapa:** Etapa III — Implementación Física  
+**Asignatura:** Bases de Datos I, año 2026
 
----
+**Equipo:** 51
 
-## 1. Introducción y Enfoque de Implementación
+**Proyecto:** Sistema de Gestión Comercial e Inventario de Hardware
 
-La Etapa III materializa el modelo lógico relacional (3FN) diseñado en la etapa anterior en un esquema de base de datos físico, ejecutable y validado. Para este proyecto se seleccionó el motor relacional **Microsoft SQL Server** (T-SQL), utilizando herramientas estándar como **SQL Server Management Studio (SSMS)**.
+**Autor:** Nuñez Axel Gabriel
 
-El objetivo central es garantizar que la base de datos soporte el ciclo de comercialización de componentes de hardware garantizando la integridad de entidad, la integridad referencial y las reglas de negocio críticas definidas en la Etapa I.
+**Etapa:** III
 
----
+## 1. Scripts y motor
 
-## 2. Estructura de Scripts y Organización del Repositorio
+La implementación utiliza Microsoft SQL Server y sintaxis T-SQL. Los scripts se pueden abrir en SQL Server Management Studio (SSMS). `GO` separa los lotes que ejecuta la herramienta.
 
-En cumplimiento estricto con el árbol de directorios oficial de la cátedra para el repositorio Git, los artefactos de código SQL se organizan en la carpeta raíz `sql/` de la siguiente manera:
+| Archivo | Contenido |
+| --- | --- |
+| `sql/ddl/crear_bd.sql` | Creación de `tienda_hardware`, siete tablas y sus restricciones. |
+| `sql/dml/datos_prueba.sql` | Carga de categorías, medios de pago, clientes, productos, ventas, detalles y pagos. |
 
-```text
-sql/
-├── ddl/
-│   └── crear_bd.sql         <-- Definición de base de datos, tablas y restricciones
-└── dml/
-    └── datos_prueba.sql     <-- Poblado inicial con datos coherentes para pruebas
-```
+## 2. Orden de ejecución
 
-### 2.1. Script DDL: `sql/ddl/crear_bd.sql`
-Este archivo concentra toda la creación estructural y se encuentra dividido en tres bloques funcionales:
-* **Bloque 1 (Tablas Base y Maestras):** Inicialización de la base de datos `tienda_hardware` y creación de las tablas independientes del catálogo (`CATEGORIA`, `METODO_PAGO`, `CLIENTE`, `PRODUCTO`) con sus tipos de datos, `PRIMARY KEY` y restricciones `UNIQUE`.
-* **Bloque 2 (Tablas Transaccionales y FKs):** Creación de las tablas dependientes (`VENTA`, `DETALLE_VENTA`, `PAGA_CON`) e implementación de las claves foráneas con reglas de actualización y eliminación (`ON UPDATE CASCADE`, `ON DELETE CASCADE` y `ON DELETE NO ACTION / RESTRICT`).
-* **Bloque 3 (Restricciones CHECK y DEFAULT):** Incorporación de reglas de validación de dominio (precios positivos, stock no negativo, consistencia de stock reservado y formato de correo electrónico) y valores por defecto automáticos.
+1. Trabajar sobre una base sin las tablas del proyecto y ejecutar `crear_bd.sql`.
+2. Revisar que se hayan creado las siete tablas y sus restricciones.
+3. Ejecutar una sola vez `datos_prueba.sql`.
+4. Realizar los controles indicados en `pruebas-validacion.md`.
 
-### 2.2. Script DML: `sql/dml/datos_prueba.sql`
-Este archivo contiene el lote de prueba inicial con al menos 8 a 10 registros coherentes por tabla:
-* **Parte 1 (Catálogos y Maestros):** Poblado de 10 categorías de hardware, 8 métodos de pago, 10 clientes particulares y 10 productos de alta gama con existencias iniciales.
-* **Parte 2 (Transacciones Comerciales):** Inserción de 10 ventas completas, 17 renglones de detalle de venta y 14 registros de cobros multipago, con correspondencia aritmética exacta.
+El DDL crea la base si no existe, pero no elimina ni reemplaza tablas existentes. El DML tampoco borra datos anteriores: repetirlo sobre el mismo lote produce claves duplicadas.
 
----
+Las tablas referenciadas se crean antes que sus dependientes. La carga sigue el mismo criterio: primero los catálogos y clientes, después los productos y ventas, y al final los detalles y pagos.
 
-## 3. Orden Secuencial de Ejecución
+## 3. Tablas y claves
 
-Para garantizar una instalación limpia sin conflictos de dependencias referenciales, la ejecución de los scripts debe respetar el siguiente orden estricto:
+| Tabla | Clave primaria | Referencias |
+| --- | --- | --- |
+| `CATEGORIA` | `codigo_categoria` | No tiene. |
+| `METODO_PAGO` | `codigo_metodo` | No tiene. |
+| `CLIENTE` | `dni_cuit` | No tiene. |
+| `PRODUCTO` | `sku` | `codigo_categoria` referencia a `CATEGORIA`. |
+| `VENTA` | `codigo_venta` | `dni_cuit` referencia a `CLIENTE`. |
+| `DETALLE_VENTA` | `(codigo_venta, id)` | `codigo_venta` referencia a `VENTA`; `sku`, a `PRODUCTO`. |
+| `PAGA_CON` | `(codigo_venta, codigo_metodo)` | `codigo_venta` referencia a `VENTA`; `codigo_metodo`, a `METODO_PAGO`. |
 
-```mermaid
-flowchart TD
-    A["1. Ejecutar sql/ddl/crear_bd.sql"] --> B["Creación de BD tienda_hardware"]
-    B --> C["Tablas Maestras: CATEGORIA, METODO_PAGO, CLIENTE, PRODUCTO"]
-    C --> D["Tablas Transaccionales y FKs: VENTA, DETALLE_VENTA, PAGA_CON"]
-    D --> E["Restricciones CHECK y DEFAULT"]
-    E --> F["2. Ejecutar sql/dml/datos_prueba.sql"]
-    F --> G["Carga de Catálogos: CATEGORIA, METODO_PAGO"]
-    G --> H["Carga de CLIENTE y PRODUCTO"]
-    H --> I["Carga de Cabeceras VENTA"]
-    I --> J["Carga de DETALLE_VENTA y PAGA_CON"]
-```
+El `id` del detalle es un entero positivo que identifica el renglón dentro de una venta. Puede repetirse en ventas diferentes. En `PAGA_CON` se guarda un monto acumulado por cada combinación de venta y medio.
 
-### Justificación Técnica del Orden:
-1. **Prioridad del DDL:** No es posible insertar datos si las estructuras de almacenamiento y sus tipos de datos no existen previamente.
-2. **Jerarquía en DDL:** Las tablas independientes (fuertes) deben crearse antes que las tablas dependientes para que las sentencias `FOREIGN KEY` encuentren la tabla y columna de destino válida.
-3. **Jerarquía en DML:** 
-   * Primero se pueblan `CATEGORIA` y `METODO_PAGO`, ya que no dependen de nadie.
-   * Luego se carga `PRODUCTO` (depende de `CATEGORIA`) y `CLIENTE`.
-   * A continuación se inserta `VENTA` (depende de `CLIENTE`).
-   * Finalmente se insertan `DETALLE_VENTA` (depende de `VENTA` y `PRODUCTO`) y `PAGA_CON` (depende de `VENTA` y `METODO_PAGO`). De lo contrario, el motor abortaría la transacción por violación de integridad referencial.
+## 4. Tipos de datos y valores
 
----
+Los importes `precio_lista`, `monto_total`, `precio_uni_historico` y `monto_abonado` usan `DECIMAL(12, 2)`. Las cantidades y existencias usan `INT`. El DNI/CUIT y el SKU se almacenan como texto.
 
-## 4. Estructura Detallada de las Tablas Físicas
+`VENTA.estado` es `VARCHAR(10) NOT NULL`. Admite `Pendiente`, `Abonado` y `Cancelado`, con `Pendiente` como valor predeterminado. La fecha y hora usa `DATETIME` y tiene como valor predeterminado `CURRENT_TIMESTAMP`.
 
-A continuación se detalla la correspondencia física de las 7 tablas normalizadas en 3FN:
+El precio histórico se guarda en el detalle, separado del precio de lista del producto. El stock disponible no se almacena: se calcula como `stock_actual - stock_reservado`.
 
-| Tabla | Rol / Naturaleza | Clave Primaria (PK) | Claves Foráneas (FK) | Restricciones Adicionales |
-| :--- | :--- | :--- | :--- | :--- |
-| **`CATEGORIA`** | Catálogo Maestro | `codigo_categoria` (INT) | Ninguna | `UQ_CATEGORIA_nombre` |
-| **`METODO_PAGO`** | Catálogo Maestro | `codigo_metodo` (INT) | Ninguna | `UQ_METODO_PAGO_nombre` |
-| **`CLIENTE`** | Catálogo Maestro | `dni_cuit` (VARCHAR(20)) | Ninguna | `UQ_CLIENTE_email`, `CHK_email` |
-| **`PRODUCTO`** | Catálogo Maestro | `sku` (VARCHAR(50)) | `codigo_categoria` $\rightarrow$ `CATEGORIA` | `CHK_precio`, `CHK_stock`, `DF_reservado=0` |
-| **`VENTA`** | Cabecera Transaccional | `codigo_venta` (INT) | `dni_cuit` $\rightarrow$ `CLIENTE` | `CHK_monto_total`, `DF_fecha=CURRENT_TIMESTAMP` |
-| **`DETALLE_VENTA`** | Renglón / Entidad Débil | `(codigo_venta, sku)` | `codigo_venta` $\rightarrow$ `VENTA`<br>`sku` $\rightarrow$ `PRODUCTO` | `CHK_cantidad > 0`, `CHK_precio_uni >= 0` |
-| **`PAGA_CON`** | Tabla Intermedia N:M | `(codigo_venta, codigo_metodo)` | `codigo_venta` $\rightarrow$ `VENTA`<br>`codigo_metodo` $\rightarrow$ `METODO_PAGO` | `CHK_monto > 0` |
+El DDL establece claves, obligatoriedad y condiciones sobre los valores de las filas. La igualdad entre los totales de cabecera, detalles y pagos se comprueba con las consultas de control de esta etapa.
 
-### Notas de Diseño Físico:
-* **Precisión Monetaria:** Todos los importes monetarios (`precio_lista`, `precio_unitario`, `monto_total`, `monto`) utilizan el tipo `DECIMAL(12, 2)`, evitando las imprecisiones de redondeo de tipos flotantes.
-* **Atributo Derivado:** Se ratifica que `stock_disponible` no posee columna física en la tabla `PRODUCTO`; se obtiene dinámicamente mediante la fórmula: `(stock_actual - stock_reservado)`.
-* **Inmutabilidad:** En `DETALLE_VENTA`, la columna `precio_unitario` almacena el valor pactado al momento de la venta, blindando los comprobantes históricos frente a futuros cambios de precios en `PRODUCTO.precio_lista`.
+## 5. Contenido del lote de prueba
+
+El DML contiene 10 categorías, 8 medios de pago, 10 clientes, 10 productos, 10 ventas, 17 detalles y 14 pagos. Las ventas están en estado `Abonado` y sus importes coinciden con los detalles y pagos.
+
+Las existencias representan el stock al momento de la carga. Todos los productos tienen `stock_reservado = 0`, porque el lote no contiene ventas pendientes. No corresponde volver a descontar estas ventas históricas del stock cargado.

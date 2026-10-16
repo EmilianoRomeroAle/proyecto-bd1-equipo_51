@@ -1,105 +1,192 @@
-# Informe de Pruebas y Validación de Datos
+# Pruebas y validación de datos
 
-## Proyecto Integrador — Bases de Datos I (Año 2026)
-**Equipo de Proyecto:** Equipo 51  
-**Dominio:** Sistema de Gestión Comercial e Inventario de Hardware  
-**Autor:** Martín Miño  
-**Etapa:** Etapa III — Implementación Física  
+**Asignatura:** Bases de Datos I, año 2026
 
-Este documento presenta los resultados de las pruebas empíricas de consistencia realizadas sobre el lote de datos de prueba cargado en `sql/dml/datos_prueba.sql`, verificando que ninguna restricción del SGBD haya sido vulnerada y demostrando la exactitud matemática de las operaciones comerciales, el cuadre multipago y el congelamiento de precios históricos.
+**Equipo:** 51
 
----
+**Proyecto:** Sistema de Gestión Comercial e Inventario de Hardware
 
-## 1. Validación de No Violación de Restricciones DDL
+**Autor:** Martín Miño
 
-Se verificó el comportamiento del motor de base de datos tras la ejecución completa del lote DML:
+**Etapa:** III
 
-1. **Integridad de Entidad (Primary Keys):**  
-   Los 10 registros de `CATEGORIA`, 8 de `METODO_PAGO`, 10 de `CLIENTE`, 10 de `PRODUCTO`, 10 de `VENTA`, 17 de `DETALLE_VENTA` y 14 de `PAGA_CON` poseen claves primarias únicas y no nulas. No se produjeron colisiones ni intentos de inserción con claves duplicadas.
-2. **Integridad Referencial (Foreign Keys):**  
-   Todas las referencias foráneas vincularon registros preexistentes:
-   * Cada `codigo_categoria` en `PRODUCTO` corresponde a una categoría cargada.
-   * Cada `dni_cuit` en `VENTA` corresponde a un cliente del padrón.
-   * Cada `sku` y `codigo_venta` en `DETALLE_VENTA` y `PAGA_CON` apuntan a filas válidas en sus respectivas tablas maestras y transaccionales.
-3. **Restricciones CHECK:**  
-   * Ningún precio o monto registrado fue negativo ni igual a cero (`CHK_precio_lista`, `CHK_monto_total`, `CHK_cantidad`, `CHK_monto`).
-   * En los 10 productos se cumple estrictamente la condición:  
-     $$\text{stock\_actual} \ge \text{stock\_reservado} \ge 0$$
-   * Todos los correos electrónicos cumplen con el patrón `@` y dominio.
+## 1. Alcance de la revisión
 
----
+La validación se divide en la revisión del lote y las pruebas para ejecutar en SQL Server. Los conteos y cálculos siguientes se obtienen de los valores escritos en `sql/dml/datos_prueba.sql`. Cada control SQL indica el resultado esperado después de cargar los datos.
 
-## 2. Matriz de Cuadre Matemático de Ventas y Multipagos
+| Tabla | Filas del lote |
+| --- | ---: |
+| `CATEGORIA` | 10 |
+| `METODO_PAGO` | 8 |
+| `CLIENTE` | 10 |
+| `PRODUCTO` | 10 |
+| `VENTA` | 10 |
+| `DETALLE_VENTA` | 17 |
+| `PAGA_CON` | 14 |
 
-La regla de negocio **RN.07** establece que una venta debe saldarse en su totalidad y que la suma de los montos abonados debe ser **exactamente igual** al total liquidado en la cabecera. Asimismo, la suma de los subtotales de los renglones de detalle debe coincidir con dicho total.
+Las claves del lote no se repiten dentro de sus tablas y las referencias corresponden a registros incluidos en la carga. En los detalles se considera la clave completa `(codigo_venta, id)`, por lo que `id = 1` puede aparecer en distintas ventas.
 
-A continuación se detalla la comprobación aritmética comprobante por comprobante de los datos cargados en `datos_prueba.sql`:
+Las 10 ventas tienen estado `Abonado`. Los 10 productos tienen `stock_reservado = 0`; sus existencias representan el stock al momento de la carga, sin reservas pendientes.
 
-| Venta ID | Fecha / Hora | Total Cabecera (`VENTA.monto_total`) | Suma Renglones (`DETALLE_VENTA`) | Suma Cobros (`PAGA_CON`) | Tipo de Pago | Discrepancia ($\Delta$) | Estado de Validación |
-| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **#1** | 2026-09-01 10:15 | **$305.000,00** | 2x$45k (RAM) + 1x$215k (CPU) = **$305.000,00** | $105k (Efectivo) + $200k (Transferencia) = **$305.000,00** | **Multipago (2 medios)** | **$0,00** | **VÁLIDA** |
-| **#2** | 2026-09-02 11:30 | **$420.000,00** | 1x$420k (GPU RTX 4060) = **$420.000,00** | $420k (Crédito 3 Cuotas) = **$420.000,00** | Unipago | **$0,00** | **VÁLIDA** |
-| **#3** | 2026-09-05 14:20 | **$200.000,00** | 2x$100k (SSD NVMe) = **$200.000,00** | $200k (Mercado Pago) = **$200.000,00** | Unipago | **$0,00** | **VÁLIDA** |
-| **#4** | 2026-09-08 16:45 | **$378.000,00** | 1x$130k (Motherboard) + 1x$248k (CPU i5) = **$378.000,00** | $378k (Débito) = **$378.000,00** | Unipago | **$0,00** | **VÁLIDA** |
-| **#5** | 2026-09-10 09:10 | **$575.000,00** | 1x$198k (Monitor) + 1x$377k (GPU MSI) = **$575.000,00** | $400k (Crédito 6 Cuotas) + $175k (Transferencia) = **$575.000,00** | **Multipago (2 medios)** | **$0,00** | **VÁLIDA** |
-| **#6** | 2026-09-12 18:00 | **$145.000,00** | 1x$145k (Fuente Corsair) = **$145.000,00** | $145k (Efectivo) = **$145.000,00** | Unipago | **$0,00** | **VÁLIDA** |
-| **#7** | 2026-09-15 12:25 | **$270.000,00** | 2x$135k (RAM Corsair DDR5) = **$270.000,00** | $270k (Cripto USDT) = **$270.000,00** | Unipago | **$0,00** | **VÁLIDA** |
-| **#8** | 2026-09-18 15:50 | **$443.000,00** | 1x$215k (CPU) + 1x$118k (MB) + 1x$110k (SSD) = **$443.000,00** | $143k (Efectivo) + $300k (Débito) = **$443.000,00** | **Multipago (2 medios)** | **$0,00** | **VÁLIDA** |
-| **#9** | 2026-09-20 17:10 | **$198.000,00** | 1x$198k (Monitor LG) = **$198.000,00** | $198k (Crédito 1 Pago) = **$198.000,00** | Unipago | **$0,00** | **VÁLIDA** |
-| **#10** | 2026-09-22 19:35 | **$655.000,00** | 1x$420k (GPU) + 2x$45k (RAM) + 1x$145k (Fuente) = **$655.000,00** | $355k (Mercado Pago) + $300k (Transferencia) = **$655.000,00** | **Multipago (2 medios)** | **$0,00** | **VÁLIDA** |
+## 2. Cuadre de ventas
 
-**Resultado del Cuadre:** El 100% de las transacciones (10 de 10) presentan una discrepancia de **$\Delta = \$0,00$**, demostrando total consistencia contable tanto a nivel de detalle de productos como de asignación de medios de pago.
+La RN.04 exige que el importe abonado coincida con el total para que la venta quede en estado `Abonado`. También se comprueba que el total de cabecera corresponda a la suma de cantidad por precio histórico de los renglones.
 
----
+Los importes de esta tabla están expresados en pesos. Cada fila resume los valores presentes en el DML.
 
-## 3. Demostración de Casos Críticos de Negocio
+| Venta | Total de cabecera | Suma de detalles | Suma de pagos | Diferencia |
+| ---: | ---: | --- | --- | ---: |
+| 1 | 305.000,00 | 2 × 45.000 + 215.000 = 305.000 | 105.000 + 200.000 = 305.000 | 0,00 |
+| 2 | 420.000,00 | 420.000 | 420.000 | 0,00 |
+| 3 | 200.000,00 | 2 × 100.000 = 200.000 | 200.000 | 0,00 |
+| 4 | 378.000,00 | 130.000 + 248.000 = 378.000 | 378.000 | 0,00 |
+| 5 | 575.000,00 | 198.000 + 377.000 = 575.000 | 400.000 + 175.000 = 575.000 | 0,00 |
+| 6 | 145.000,00 | 145.000 | 145.000 | 0,00 |
+| 7 | 270.000,00 | 2 × 135.000 = 270.000 | 270.000 | 0,00 |
+| 8 | 443.000,00 | 215.000 + 118.000 + 110.000 = 443.000 | 143.000 + 300.000 = 443.000 | 0,00 |
+| 9 | 198.000,00 | 198.000 | 198.000 | 0,00 |
+| 10 | 655.000,00 | 420.000 + 2 × 45.000 + 145.000 = 655.000 | 355.000 + 300.000 = 655.000 | 0,00 |
 
-### 3.1. Casos de Multipago Exitoso (RN.07)
-El lote de prueba incluyó intencionalmente 4 ventas que requirieron pagos fraccionados:
-* **Venta #1:** Cliente abonó $105.000,00 en mostrador (Efectivo) y liquidó el saldo de $200.000,00 mediante Transferencia Bancaria inmediata.
-* **Venta #5:** Venta de $575.000,00 financiada con $400.000,00 en Tarjeta de Crédito 6 Cuotas y $175.000,00 en Transferencia Bancaria.
-* **Venta #8:** Compra de $443.000,00 saldada con $143.000,00 en Efectivo y $300.000,00 con Tarjeta de Débito.
-* **Venta #10:** Operación mayor de $655.000,00 cubierta mediante $355.000,00 por Mercado Pago y $300.000,00 por Transferencia Bancaria.
+El cálculo del lote coincide en las 10 ventas. Las ventas 1, 5, 8 y 10 combinan dos medios de pago.
 
-### 3.2. Congelamiento de Precios Históricos (RN.06)
-En la **Venta #3**, el cliente adquirió dos unidades del producto `'SSD-SAM-980PRO'` facturadas a un precio unitario de **$100.000,00**.  
-Sin embargo, en el catálogo actual de la tabla `PRODUCTO`, dicho artículo posee un `precio_lista` de **$110.000,00**.
-* **Comprobación:** La venta mantiene congelado el precio acordado de $100.000,00 en su comprobante, evidenciando de forma práctica que el aumento posterior del precio en el catálogo no distorsiona el histórico de ventas.
+## 3. Consultas de control
 
----
+Después de ejecutar los scripts en una base de prueba, seleccionar `tienda_hardware` en SSMS y ejecutar cada consulta por separado.
 
-## 4. Scripts SQL de Validación Automática
-
-Para verificar automáticamente en el motor que no existen discrepancias aritméticas en la base de datos, se ejecutaron las siguientes consultas de control:
+### Cabecera y detalles
 
 ```sql
--- -----------------------------------------------------------------------------
--- CONSULTA DE CONTROL 1: Validar que Cabecera = Suma de Detalles
--- (Debe devolver 0 registros si todas las ventas cuadran)
--- -----------------------------------------------------------------------------
-SELECT 
-    v.codigo_venta,
-    v.monto_total AS total_cabecera,
-    SUM(d.cantidad * d.precio_unitario) AS total_detalle,
-    (v.monto_total - SUM(d.cantidad * d.precio_unitario)) AS diferencia
+SELECT v.codigo_venta,
+       v.monto_total AS total_cabecera,
+       COALESCE(SUM(d.cantidad * d.precio_uni_historico), 0) AS total_detalle,
+       v.monto_total - COALESCE(SUM(d.cantidad * d.precio_uni_historico), 0) AS diferencia
 FROM VENTA v
-INNER JOIN DETALLE_VENTA d ON v.codigo_venta = d.codigo_venta
+LEFT JOIN DETALLE_VENTA d ON d.codigo_venta = v.codigo_venta
 GROUP BY v.codigo_venta, v.monto_total
-HAVING v.monto_total <> SUM(d.cantidad * d.precio_unitario);
-
--- -----------------------------------------------------------------------------
--- CONSULTA DE CONTROL 2: Validar que Cabecera = Suma de Pagos
--- (Debe devolver 0 registros si todos los cobros coinciden)
--- -----------------------------------------------------------------------------
-SELECT 
-    v.codigo_venta,
-    v.monto_total AS total_cabecera,
-    SUM(p.monto) AS total_pagado,
-    (v.monto_total - SUM(p.monto)) AS diferencia
-FROM VENTA v
-INNER JOIN PAGA_CON p ON v.codigo_venta = p.codigo_venta
-GROUP BY v.codigo_venta, v.monto_total
-HAVING v.monto_total <> SUM(p.monto);
+HAVING COUNT(d.id) = 0
+    OR v.monto_total <> COALESCE(SUM(d.cantidad * d.precio_uni_historico), 0);
 ```
 
-**Resultado de Ejecución:** Ambas consultas devuelven **0 filas**, ratificando la consistencia absoluta de los datos de prueba implementados para la Etapa III.
+Resultado esperado para el lote: cero filas. El `LEFT JOIN` conserva ventas sin detalle y `COUNT(d.id) = 0` permite detectarlas. El control considera todas las ventas registradas.
+
+### Cabecera y pagos de ventas abonadas
+
+```sql
+SELECT v.codigo_venta,
+       v.monto_total AS total_cabecera,
+       COALESCE(SUM(p.monto_abonado), 0) AS total_pagado,
+       v.monto_total - COALESCE(SUM(p.monto_abonado), 0) AS diferencia
+FROM VENTA v
+LEFT JOIN PAGA_CON p ON p.codigo_venta = v.codigo_venta
+WHERE v.estado = 'Abonado'
+GROUP BY v.codigo_venta, v.monto_total
+HAVING COUNT(p.codigo_metodo) = 0
+    OR v.monto_total <> COALESCE(SUM(p.monto_abonado), 0);
+```
+
+Resultado esperado para el lote: cero filas. Incluye ventas abonadas sin pagos y detecta diferencias de importes. Las ventas pendientes pueden tener pagos parciales, por lo que no se les exige aquí el cuadre completo.
+
+### Precio histórico
+
+```sql
+SELECT d.codigo_venta, d.id, d.sku, d.cantidad,
+       d.precio_uni_historico, p.precio_lista
+FROM DETALLE_VENTA d
+JOIN PRODUCTO p ON p.sku = d.sku
+WHERE d.codigo_venta = 3
+  AND d.sku = 'SSD-SAM-980PRO';
+```
+
+Resultado esperado: un renglón de la venta 3, con cantidad 2, `precio_uni_historico = 100000.00` y `precio_lista = 110000.00`. El ejemplo muestra la separación de los dos precios de RN.03. El total usa el precio histórico y resulta 200.000,00.
+
+### Valores predeterminados
+
+```sql
+EXEC sp_help 'VENTA';
+EXEC sp_help 'PRODUCTO';
+```
+
+En los resultados, revisar las restricciones `DEFAULT`: `DF_VENTA_estado` debe indicar `Pendiente`, `DF_VENTA_fecha_hora` la fecha y hora actuales, y `DF_PRODUCTO_stock_reservado` el valor 0. `sp_help` muestra información de las tablas sin insertar ni modificar datos.
+
+## 4. Pruebas negativas manuales
+
+Estas prácticas se realizan después de la carga, en una base de prueba que conserve el lote original. Ejecutar una sola sentencia por vez y revisar el mensaje. El resultado esperado en cada caso es el rechazo de la sentencia, sin modificar las filas del lote.
+
+### Clave primaria compuesta
+
+```sql
+INSERT INTO DETALLE_VENTA (codigo_venta, id, sku, cantidad, precio_uni_historico)
+VALUES (1, 1, 'CPU-AMD-5600X', 1, 215000.00);
+```
+
+Resultado esperado: rechazo por `PK_DETALLE_VENTA`, porque el renglón `(1, 1)` ya existe.
+
+### Clave foránea
+
+```sql
+UPDATE PRODUCTO
+SET codigo_categoria = 9999
+WHERE sku = 'CPU-AMD-5600X';
+```
+
+Resultado esperado: rechazo por `FK_PRODUCTO_CATEGORIA`, porque la categoría 9999 no está en el lote.
+
+### Dato obligatorio
+
+```sql
+UPDATE CLIENTE
+SET telefono = NULL
+WHERE dni_cuit = '40123456';
+```
+
+Resultado esperado: rechazo por `NOT NULL` en `CLIENTE.telefono`.
+
+### Estado no admitido
+
+```sql
+UPDATE VENTA
+SET estado = 'Otro'
+WHERE codigo_venta = 1;
+```
+
+Resultado esperado: rechazo por `CHK_VENTA_estado`.
+
+### Número de renglón no positivo
+
+```sql
+UPDATE DETALLE_VENTA
+SET id = 0
+WHERE codigo_venta = 1 AND id = 1;
+```
+
+Resultado esperado: rechazo por `CHK_DETALLE_VENTA_id`.
+
+### Precio histórico negativo
+
+```sql
+UPDATE DETALLE_VENTA
+SET precio_uni_historico = -1
+WHERE codigo_venta = 1 AND id = 1;
+```
+
+Resultado esperado: rechazo por `CHK_DETALLE_VENTA_precio_uni_historico`.
+
+### Pago sin importe positivo
+
+```sql
+UPDATE PAGA_CON
+SET monto_abonado = 0
+WHERE codigo_venta = 1 AND codigo_metodo = 1;
+```
+
+Resultado esperado: rechazo por `CHK_PAGA_CON_monto_abonado`.
+
+### Correo duplicado
+
+```sql
+UPDATE CLIENTE
+SET email = 'carlos.gomez@gmail.com'
+WHERE dni_cuit = '38987654';
+```
+
+Resultado esperado: rechazo por `UQ_CLIENTE_email`, porque el correo ya pertenece al cliente con DNI 40123456.

@@ -7,8 +7,8 @@
 -- 
 -- Archivo: sql/ddl/crear_bd.sql
 -- Responsable Inicial (Tarea 1): Nuñez Axel Gabriel (DNI: 43275213)
--- Descripción: Creación de la base de datos y definición de tablas maestras/independientes
--- Motor: Compatible con Microsoft SQL Server / T-SQL Estándar
+-- Descripción: Creación de la base, tablas, claves y restricciones.
+-- Motor: Microsoft SQL Server (T-SQL)
 -- ====================================================================
 
 -- --------------------------------------------------------------------
@@ -114,18 +114,19 @@ ALTER TABLE PRODUCTO
     ADD CONSTRAINT FK_PRODUCTO_CATEGORIA 
     FOREIGN KEY (codigo_categoria) REFERENCES CATEGORIA (codigo_categoria)
     ON UPDATE CASCADE 
-    ON DELETE NO ACTION; -- Nota: En T-SQL / SQL Server, NO ACTION equivale al comportamiento RESTRICT
+    ON DELETE NO ACTION;
 GO
 
 -- --------------------------------------------------------------------
 -- 2. TABLA TRANSACCIONAL: VENTA
--- Registro de cabecera de transacciones comerciales (RN.01, RN.04)
+-- Cabecera de ventas y estado del comprobante (RN.01, RN.04)
 -- --------------------------------------------------------------------
 CREATE TABLE VENTA
 (
     codigo_venta INT NOT NULL,
     fecha_hora DATETIME NOT NULL,
     monto_total DECIMAL(12, 2) NOT NULL,
+    estado VARCHAR(10) NOT NULL,
     dni_cuit VARCHAR(20) NOT NULL,
 
     -- Clave Primaria Simple
@@ -140,18 +141,19 @@ CREATE TABLE VENTA
 GO
 
 -- --------------------------------------------------------------------
--- 3. TABLA INTERMEDIA (M:N): DETALLE_VENTA
--- Relación entre VENTA y PRODUCTO con cantidad y precio pactado (RN.02, RN.08)
+-- 3. ENTIDAD DÉBIL: DETALLE_VENTA
+-- Renglones de cada venta con producto, cantidad y precio histórico (RN.03)
 -- --------------------------------------------------------------------
 CREATE TABLE DETALLE_VENTA
 (
     codigo_venta INT NOT NULL,
+    id INT NOT NULL,
     sku VARCHAR(50) NOT NULL,
     cantidad INT NOT NULL,
-    precio_unitario DECIMAL(12, 2) NOT NULL,
+    precio_uni_historico DECIMAL(12, 2) NOT NULL,
 
     -- Clave Primaria Compuesta
-    CONSTRAINT PK_DETALLE_VENTA PRIMARY KEY (codigo_venta, sku),
+    CONSTRAINT PK_DETALLE_VENTA PRIMARY KEY (codigo_venta, id),
 
     -- Claves Foráneas con Reglas de Integridad Referencial
     CONSTRAINT FK_DETALLE_VENTA_VENTA FOREIGN KEY (codigo_venta) 
@@ -174,7 +176,7 @@ CREATE TABLE PAGA_CON
 (
     codigo_venta INT NOT NULL,
     codigo_metodo INT NOT NULL,
-    monto DECIMAL(12, 2) NOT NULL,
+    monto_abonado DECIMAL(12, 2) NOT NULL,
 
     -- Clave Primaria Compuesta
     CONSTRAINT PK_PAGA_CON PRIMARY KEY (codigo_venta, codigo_metodo),
@@ -194,7 +196,6 @@ GO
 
 -- ====================================================================
 -- BLOQUE 3: RESTRICCIONES DE DOMINIO Y VALIDACIONES 
--- Responsable Inicial (Tarea 3): [Nombre del Integrante 3]
 -- ====================================================================
 
 -- --------------------------------------------------------------------
@@ -227,6 +228,8 @@ GO
 -- --------------------------------------------------------------------
 ALTER TABLE VENTA
     ADD CONSTRAINT CHK_VENTA_monto_total CHECK (monto_total > 0),
+        CONSTRAINT CHK_VENTA_estado CHECK (estado IN ('Pendiente', 'Abonado', 'Cancelado')),
+        CONSTRAINT DF_VENTA_estado DEFAULT 'Pendiente' FOR estado,
         
         -- Valor por defecto para registrar la fecha y hora de la transacción automáticamente (T-SQL)
         CONSTRAINT DF_VENTA_fecha_hora DEFAULT CURRENT_TIMESTAMP FOR fecha_hora;
@@ -237,8 +240,9 @@ GO
 -- Validaciones sobre las cantidades y precios de los ítems vendidos
 -- --------------------------------------------------------------------
 ALTER TABLE DETALLE_VENTA
-    ADD CONSTRAINT CHK_DETALLE_VENTA_cantidad CHECK (cantidad > 0),
-        CONSTRAINT CHK_DETALLE_VENTA_precio_unitario CHECK (precio_unitario >= 0);
+    ADD CONSTRAINT CHK_DETALLE_VENTA_id CHECK (id > 0),
+        CONSTRAINT CHK_DETALLE_VENTA_cantidad CHECK (cantidad > 0),
+        CONSTRAINT CHK_DETALLE_VENTA_precio_uni_historico CHECK (precio_uni_historico >= 0);
 GO
 
 -- --------------------------------------------------------------------
@@ -246,5 +250,5 @@ GO
 -- Validación sobre los montos parciales o totales abonados por método de pago
 -- --------------------------------------------------------------------
 ALTER TABLE PAGA_CON
-    ADD CONSTRAINT CHK_PAGA_CON_monto CHECK (monto > 0);
+    ADD CONSTRAINT CHK_PAGA_CON_monto_abonado CHECK (monto_abonado > 0);
 GO
