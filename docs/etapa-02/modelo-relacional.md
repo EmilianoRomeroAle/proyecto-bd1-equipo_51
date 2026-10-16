@@ -6,71 +6,60 @@
 **Responsable:** Nuñez Tobias Nahuel (DNI: 46316154)  
 **Repositorio:** https://github.com/EmilianoRomeroAle/proyecto-bd1-equipo_51  
 
----
+## 1. Tablas, claves primarias y claves foráneas
 
-## 1. Esquema Relacional de Tablas (Notación Estándar)
+El modelo relacional contiene siete tablas. Las claves primarias identifican cada fila y las claves foráneas representan las relaciones entre ellas.
 
-A partir del Diagrama Entidad-Relación (DER), se realizó la transformación a tablas relacionales definiendo Claves Primarias (PK) y Claves Foráneas (FK):
+| Tabla y atributos | Clave primaria | Claves foráneas |
+| :--- | :--- | :--- |
+| CLIENTE (dni_cuit, nombre, apellido, email, telefono) | dni_cuit | — |
+| CATEGORIA (codigo_categoria, nombre_categoria) | codigo_categoria | — |
+| PRODUCTO (sku, marca, modelo, descripcion_tecnica, precio_lista, stock_actual, stock_reservado, codigo_categoria) | sku | codigo_categoria → CATEGORIA(codigo_categoria) |
+| METODO_PAGO (codigo_metodo, nombre_metodo) | codigo_metodo | — |
+| VENTA (codigo_venta, fecha_hora, monto_total, estado, dni_cuit) | codigo_venta | dni_cuit → CLIENTE(dni_cuit) |
+| DETALLE_VENTA (codigo_venta, id, sku, cantidad, precio_uni_historico) | (codigo_venta, id) | codigo_venta → VENTA(codigo_venta); sku → PRODUCTO(sku) |
+| PAGA_CON (codigo_venta, codigo_metodo, monto_abonado) | (codigo_venta, codigo_metodo) | codigo_venta → VENTA(codigo_venta); codigo_metodo → METODO_PAGO(codigo_metodo) |
 
-- **CLIENTE** (<u>dni_cuit</u>, nombre, apellido, email, telefono)
-- **CATEGORIA** (<u>codigo_categoria</u>, nombre_categoria)
-- **PRODUCTO** (<u>sku</u>, marca, modelo, descripcion_tecnica, precio_lista, stock_actual, stock_reservado, *codigo_categoria*)
-  - *FK:* `codigo_categoria` $\rightarrow$ `CATEGORIA(codigo_categoria)`
-- **METODO_PAGO** (<u>codigo_metodo</u>, nombre_metodo)
-- **VENTA** (<u>codigo_venta</u>, fecha_hora, monto_total, estado, *dni_cuit*)
-  - *FK:* `dni_cuit` $\rightarrow$ `CLIENTE(dni_cuit)`
-- **DETALLE_VENTA** (<u>*codigo_venta*</u>, <u>id</u>, *sku*, cantidad, precio_uni_historico)
-  - *PK Compuesta:* (`codigo_venta`, `id`)
-  - *FK1:* `codigo_venta` $\rightarrow$ `VENTA(codigo_venta)`
-  - *FK2:* `sku` $\rightarrow$ `PRODUCTO(sku)`
-- **PAGA_CON** (<u>*codigo_venta*</u>, <u>*codigo_metodo*</u>, monto_abonado)
-  - *PK Compuesta:* (`codigo_venta`, `codigo_metodo`)
-  - *FK1:* `codigo_venta` $\rightarrow$ `VENTA(codigo_venta)`
-  - *FK2:* `codigo_metodo` $\rightarrow$ `METODO_PAGO(codigo_metodo)`
+## 2. Significado de las tablas
 
----
+### CLIENTE
 
-## 2. Justificación y Decisiones de Diseño por Tabla
+Guarda los datos del cliente identificado por su `dni_cuit`. El atributo compuesto `contacto` del modelo conceptual se representa con dos columnas: `email` y `telefono`. Cada venta se vincula con un único cliente mediante `dni_cuit`.
 
-A continuación se detallan las razones técnicas y reglas de negocio aplicadas para definir cada tabla y sus atributos:
+### CATEGORIA y PRODUCTO
 
-### 2.1. CLIENTE
-- **Clave Primaria (`dni_cuit`):** Se eligió el DNI/CUIT porque identifica de manera unívoca tanto a consumidores finales como a empresas y clientes mayoristas, evitando duplicados.
-- **Descomposición de contacto:** En el DER original existía el atributo compuesto `contacto`. Durante el paso a tablas se dividió en dos columnas independientes (`email` y `telefono`), garantizando la atomicidad requerida por la Primera Forma Normal (1FN).
+Cada categoría tiene un código y un nombre. Cada producto se identifica por su `sku` y pertenece a una única categoría. El nombre de la categoría se guarda en `CATEGORIA`, para evitar repetirlo en todos los productos de la misma clasificación.
 
-### 2.2. CATEGORIA
-- **Separación en tabla independiente:** En lugar de guardar el nombre de la categoría como texto dentro de la tabla de productos, se aisló en una tabla propia con `codigo_categoria` como PK. Esto evita la repetición constante de nombres (redundancia) y previene anomalías de actualización o borrado (cumpliendo con 3FN).
+`precio_lista` representa el precio vigente del catálogo. `stock_actual` indica las existencias físicas y `stock_reservado` las unidades comprometidas en ventas pendientes. El atributo derivado `stock_disponible` se obtiene como `stock_actual - stock_reservado`, por lo que no se incluye como columna almacenada.
 
-### 2.3. PRODUCTO
-- **Clave Primaria (`sku`):** Se utilizó el código comercial SKU (*Stock Keeping Unit*) ya que es el estándar de la industria de hardware para identificar de forma exacta cada componente o variante.
-- **Exclusión de `stock_disponible`:** El stock disponible es un dato derivado que se calcula en tiempo real restando `stock_actual - stock_reservado`. No se almacena físicamente en la base de datos para evitar inconsistencias si uno de los valores cambia.
-- **Clave Foránea (`codigo_categoria`):** Representa la relación 1 a N (`CATEGORIA` $\rightarrow$ `PRODUCTO`), permitiendo asociar cada artículo a su categoría correspondiente.
+### METODO_PAGO
 
-### 2.4. METODO_PAGO
-- **Catálogo parametrizado:** Se creó como tabla independiente para registrar los medios de cobro habilitados (efectivo, transferencia, débito, crédito). Esto permite dar de alta nuevos medios de pago en el futuro sin modificar la estructura de las tablas principales.
+Es el catálogo de medios de pago autorizados. Su clave es `codigo_metodo`. Separar este catálogo permite utilizar el mismo método en distintas ventas sin repetir su nombre en cada registro de cobro.
 
-### 2.5. VENTA
-- **Clave Primaria (`codigo_venta`):** Identificador alfanumérico único para cada comprobante o transacción emitida.
-- **Relación con Cliente (`dni_cuit` FK):** Mapea la relación 1 a N (`CLIENTE` $\rightarrow$ `VENTA`), indicando qué cliente efectuó la compra.
-- **Atributos de control:** `fecha_hora` registra el instante de la operación, `monto_total` consolida el valor final de la orden y `estado` administra el flujo de vida del pedido (Pendiente, Abonado, Despachado, Cancelado).
+### VENTA
 
-### 2.6. DETALLE_VENTA (Entidad Débil)
-- **Tratamiento de entidad débil y PK compuesta:** Un ítem vendido no tiene existencia independiente fuera de la venta que lo contiene. Por ello, se definió una clave primaria compuesta por `(codigo_venta, id)`, donde `codigo_venta` es al mismo tiempo parte de la PK y FK hacia `VENTA`.
-- **Congelamiento de precio (`precio_uni_historico`):** **Decisión crítica de diseño.** Si el precio de lista de un producto sube en el futuro, las ventas pasadas deben conservar el valor exacto al que se vendieron. Almacenar el precio unitario histórico en el detalle evita que se recalculen o alteren facturas históricas y balances contables.
-- **Clave Foránea (`sku`):** Vincula el renglón con el producto específico que se está comprando.
+Representa la cabecera de la operación. `codigo_venta` es un identificador entero, definido como `INT` en la implementación. `fecha_hora` registra la creación de la venta y `monto_total` su importe total.
 
-### 2.7. PAGA_CON (Resolución de Relación Muchos a Muchos)
-- **Soporte de pagos combinados:** En el negocio, una venta puede abonarse utilizando múltiples métodos simultáneos (por ejemplo, parte en efectivo y parte con tarjeta), y un método de pago es utilizado en muchas ventas.
-- **Estructura de tabla intermedia:** La relación N:M se resolvió con la tabla `PAGA_CON`, cuya clave primaria es compuesta por `(codigo_venta, codigo_metodo)`.
-- **Atributo propio (`monto_abonado`):** Registra con exactitud el monto saldado con cada método específico, permitiendo validar que la suma de los pagos coincida con el `monto_total` de la venta.
+El atributo `estado` admite `Pendiente`, `Abonado` y `Cancelado`. Estos valores representan una venta en espera de completar el pago, una venta pagada y una venta cancelada, respectivamente.
 
----
+### DETALLE_VENTA
 
-## 3. Resumen de Reglas de Transformación Aplicadas
+Es una entidad débil identificada dentro de la venta a la que pertenece. Su clave primaria es `(codigo_venta, id)`. El atributo `id` es un número de renglón entero mayor que cero y es único dentro de cada venta; puede repetirse en ventas distintas. Por ejemplo, `(1, 1)` y `(2, 1)` identifican renglones diferentes. No es un identificador global.
 
-1. **Entidades fuertes:** Pasan directamente a tablas conservando sus atributos simples, asignando sus identificadores principales como PKs.
-2. **Atributos compuestos:** Se descomponen en sus campos atómicos (`contacto` $\rightarrow$ `email`, `telefono`).
-3. **Atributos derivados:** Se excluyen de la persistencia física (`stock_disponible`).
-4. **Relaciones 1:N:** La clave primaria de la entidad con cardinalidad 1 migra como clave foránea (FK) a la tabla con cardinalidad N (ej. `CLIENTE` $\rightarrow$ `VENTA`, `CATEGORIA` $\rightarrow$ `PRODUCTO`).
-5. **Entidades débiles:** Forman su PK compuesta combinando la PK de la entidad fuerte propietaria (`codigo_venta`) junto con su discriminador parcial (`id`).
-6. **Relaciones N:M:** Generan una nueva tabla intermedia con clave compuesta formada por las PKs de ambas entidades (`codigo_venta` + `codigo_metodo`), alojando los atributos propios de la relación (`monto_abonado`).
+`sku` es una clave foránea hacia `PRODUCTO` y no forma parte de la clave primaria del detalle. Un mismo producto puede aparecer en distintos renglones de una venta si cada renglón tiene un `id` diferente.
+
+`cantidad` indica las unidades del renglón. `precio_uni_historico` guarda el precio unitario pactado al registrar ese detalle, según RN.03. Es un dato independiente de `PRODUCTO.precio_lista`: cambiar el precio vigente del catálogo no cambia el importe almacenado en los detalles anteriores.
+
+### PAGA_CON
+
+Resuelve la relación N:M entre ventas y métodos de pago. Su clave primaria `(codigo_venta, codigo_metodo)` permite una fila por método en cada venta. `monto_abonado` representa el importe acumulado de ese método para la venta; si se usa nuevamente el mismo medio, el importe se acumula en esa fila. La tabla no representa cobros individuales separados.
+
+Una venta puede tener varios registros en `PAGA_CON`, uno por cada método utilizado. La suma de sus importes permite comparar lo abonado con `VENTA.monto_total`, de acuerdo con RN.04.
+
+## 3. Transformación del modelo conceptual
+
+Las entidades regulares se transforman en tablas con sus identificadores como claves primarias. En las relaciones 1:N, la clave de la entidad del lado 1 se incorpora como clave foránea en la tabla del lado N. Así se obtienen las referencias de `VENTA` a `CLIENTE` y de `PRODUCTO` a `CATEGORIA`.
+
+La entidad débil `DETALLE_VENTA` incorpora la clave de su propietaria `VENTA` y su discriminador parcial `id`. La relación N:M `paga_con` genera la tabla `PAGA_CON`, que incluye las claves de las entidades participantes y el atributo propio `monto_abonado`.
+
+El análisis de las dependencias funcionales y el paso a 3FN se presentan en [normalizacion.md](normalizacion.md).
