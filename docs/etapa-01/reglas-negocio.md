@@ -1,33 +1,43 @@
-# Reglas de Negocio (Versión Final Aprobada)
+# Reglas de negocio
 
-## Proyecto Integrador — Bases de Datos I (Año 2026)
-**Equipo de Proyecto:** Equipo 51  
-**Dominio:** Sistema de Gestión Comercial e Inventario de Hardware  
+**Asignatura:** Bases de Datos I, año 2026
 
-Las presentes Reglas de Negocio (RN) constituyen condiciones operativas, políticas comerciales y restricciones inviolables que el sistema debe hacer cumplir de forma estricta y permanente. Se encuentran redactadas mediante imperativos categóricos, asegurando claridad, especificidad y verificabilidad sin ambigüedades técnicas prematuras.
+**Equipo:** 51
 
----
+**Proyecto:** Sistema de Gestión Comercial e Inventario de Hardware
 
-### RN.01 — Registro Obligatorio e Identificación Única de Clientes
-Toda transacción comercial de venta debe estar vinculada de manera obligatoria a un único cliente previamente registrado en el padrón del sistema. Cada cliente debe identificarse unívocamente mediante su número de documento o identificación fiscal (DNI para personas físicas o CUIT para empresas), el cual no puede duplicarse bajo ninguna circunstancia. Asimismo, cada cliente debe tener registrado con carácter obligatorio al menos un correo electrónico válido para notificaciones y facturación.
+Estas reglas describen los requisitos del negocio. Los estados utilizados son `Pendiente`, `Abonado` y `Cancelado`.
 
-### RN.02 — Control Severo de Disponibilidad y Descuento Automático de Stock
-No se puede agregar un producto a una orden de venta si la cantidad solicitada supera las existencias disponibles en el inventario actual. Una vez que la transacción de venta pasa formalmente al estado 'Abonada', el sistema debe descontar de manera automática e inmediata la cantidad exacta de unidades comercializadas del stock del producto.
+## RN.01 — Identificación y contacto de clientes
 
-### RN.03 — Historial y Congelamiento de Precios Unitarios en el Detalle de Venta
-Cada renglón del detalle de venta debe registrar y almacenar explícitamente el precio unitario acordado y cobrado al momento exacto de la operación. Este precio histórico se mantendrá inmutable a lo largo del tiempo, y no podrá ser recalculado ni sufrir modificaciones retroactivas si el precio de lista de dicho artículo es actualizado posteriormente en el catálogo general.
+Toda venta debe estar asociada a un único cliente registrado. El DNI o CUIT de cada cliente debe ser único. El correo electrónico y el teléfono son obligatorios.
 
-### RN.04 — Validación de Liquidación y Cobertura Exacta Multipago
-Una venta debe ser cancelada en su totalidad empleando uno o más métodos de pago autorizados por la empresa (Efectivo, Transferencia Bancaria, Tarjeta de Débito, Tarjeta de Crédito). Cada cobro registrado debe especificar el medio empleado y el importe imputado. Una venta solamente podrá pasar al estado 'Abonada' si y solo si la sumatoria aritmética de los pagos registrados coincide de forma exacta con el importe total liquidado del comprobante. No se admiten ventas en estado definitivo con pagos parciales ni saldos descubiertos.
+## RN.02 — Disponibilidad y descuento de stock
 
-### RN.05 — Unicidad de Código SKU y Categorización Exclusiva de Artículos
-Cada producto perteneciente al catálogo de hardware debe poseer un código comercial único denominado SKU (*Stock Keeping Unit*), que prohíbe cualquier colisión o ambigüedad entre modelos de características técnicas similares. Asimismo, todo producto debe pertenecer de forma obligatoria a una única categoría principal de componentes (ejemplos: Procesadores, Placas de Video, Almacenamiento, Fuentes de Alimentación, Periféricos).
+No se puede agregar un producto a una venta si la cantidad solicitada supera el stock disponible. Cuando la venta pasa a `Abonado`, se deben descontar del stock físico las unidades vendidas y retirar esas unidades del stock reservado.
 
-### RN.06 — Expiración de Pedidos No Abonados y Liberación de Stock
-Si una transacción iniciada en estado 'Pendiente' no registra la totalidad de los pagos requeridos para su cancelación dentro de un plazo límite e improrrogable de 24 horas continuas contadas a partir de su momento de creación, la orden debe pasar automáticamente al estado 'Cancelado' y la totalidad de las unidades de stock que se encontraban reservadas para dicha orden deben liberarse e integrarse de inmediato al stock disponible.
+## RN.03 — Precio histórico del detalle
 
-### RN.07 — Inmutabilidad de Comprobantes en Estado Abonado
-Una vez que una orden de venta ha alcanzado el estado 'Abonada' y ha sido confirmada en el sistema, queda estrictamente prohibida su eliminación física y la modificación de cualquiera de sus atributos de cabecera (fecha, cliente asociado, importes totales) o renglones de detalle (artículos, cantidades o precios congelados), garantizando la auditabilidad permanente de las operaciones comerciales.
+Cada renglón debe guardar el precio unitario pactado al registrar el detalle de venta. Ese valor debe conservarse aunque posteriormente se modifique el precio de lista del producto. Los importes de ventas anteriores no deben recalcularse con precios actuales.
 
-### RN.08 — Reserva Temporal de Existencias por Venta Pendiente
-Al momento de confeccionarse una orden de venta en estado 'Pendiente', las cantidades solicitadas de cada artículo deben quedar inmediatamente catalogadas en concepto de stock reservado, bloqueándolas para impedir que sean vendidas a otros clientes en mostrador. El stock disponible para nuevas ventas debe calcularse en todo momento como la diferencia neta entre las existencias físicas en depósito y las cantidades comprometidas en órdenes pendientes activas. Dicha reserva temporal no constituye una baja definitiva del inventario hasta que la orden adquiera el estado 'Abonada'.
+## RN.04 — Medios de pago e importe abonado
+
+Se admiten los ocho medios del catálogo: Efectivo, Transferencia Bancaria, Tarjeta de Debito, Tarjeta de Credito 1 Pago, Tarjeta de Credito 3 Cuotas, Tarjeta de Credito 6 Cuotas, Mercado Pago y Criptomonedas (USDT). Todos se registran manualmente después de verificar el cobro, sin integraciones con servicios externos.
+
+Cada venta debe registrar uno o varios medios de pago. Mientras está `Pendiente`, puede tener pagos parciales. Solo puede pasar a `Abonado` si la suma de los importes registrados coincide exactamente con su total. Cada importe debe ser positivo y expresarse en la moneda del comprobante. Para cada combinación de venta y medio de pago se registra un único monto acumulado.
+
+## RN.05 — SKU y categoría de productos
+
+Cada producto debe tener un SKU único y pertenecer a una única categoría. El SKU distingue los artículos del catálogo, aunque compartan marca o características similares.
+
+## RN.06 — Vencimiento de ventas pendientes
+
+Si transcurren 24 horas desde la creación de una venta `Pendiente` sin que se complete su pago, la venta debe pasar a `Cancelado`. Las unidades reservadas para esa venta deben liberarse y volver a estar disponibles. La liberación no aumenta el stock físico, porque la reserva no lo había descontado.
+
+## RN.07 — Conservación de ventas abonadas
+
+Una venta en estado `Abonado` no debe eliminarse ni modificarse. La restricción comprende su cabecera y sus renglones: fecha y hora, cliente, total, estado, productos, cantidades y precios históricos.
+
+## RN.08 — Reserva de existencias
+
+Al registrar los renglones de una venta `Pendiente`, sus cantidades deben quedar reservadas para ese cliente. El stock disponible es la diferencia entre el stock actual y el reservado por ventas pendientes activas. La reserva impide comprometer esas unidades en otra venta y no constituye una baja del stock físico.
