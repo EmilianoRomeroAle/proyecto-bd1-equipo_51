@@ -34,3 +34,49 @@ JOIN PRODUCTO p ON p.sku = d.sku
 WHERE v.codigo_venta = 1
 ORDER BY d.id;
 GO
+
+-- C02. Ventas abonadas por categoria en un rango de fechas
+-- Se incluye septiembre de 2026 completo y se excluye el inicio de octubre.
+-- Se cuentan ventas distintas, aunque tengan varios renglones en la categoria.
+SELECT c.codigo_categoria,
+       c.nombre_categoria,
+       COUNT(DISTINCT v.codigo_venta) AS cantidad_ventas,
+       SUM(d.cantidad) AS unidades_vendidas,
+       SUM(d.cantidad * d.precio_uni_historico) AS total_vendido
+FROM CATEGORIA c
+JOIN PRODUCTO p ON p.codigo_categoria = c.codigo_categoria
+JOIN DETALLE_VENTA d ON d.sku = p.sku
+JOIN VENTA v ON v.codigo_venta = d.codigo_venta
+WHERE v.estado = 'Abonado'
+  AND v.fecha_hora >= '2026-09-01T00:00:00'
+  AND v.fecha_hora < '2026-10-01T00:00:00'
+GROUP BY c.codigo_categoria, c.nombre_categoria
+ORDER BY total_vendido DESC, c.codigo_categoria;
+GO
+
+-- C03. Clientes con compras variadas y un importe superior al promedio de venta
+-- Se compara el total comprado por cliente con el promedio de una venta.
+-- Tanto la consulta como la subconsulta consideran abonadas del mismo periodo.
+SELECT c.dni_cuit,
+       c.nombre,
+       c.apellido,
+       COUNT(DISTINCT v.codigo_venta) AS cantidad_ventas,
+       COUNT(DISTINCT p.sku) AS productos_distintos,
+       SUM(d.cantidad * d.precio_uni_historico) AS total_comprado
+FROM CLIENTE c
+JOIN VENTA v ON v.dni_cuit = c.dni_cuit
+JOIN DETALLE_VENTA d ON d.codigo_venta = v.codigo_venta
+JOIN PRODUCTO p ON p.sku = d.sku
+WHERE v.estado = 'Abonado'
+  AND v.fecha_hora >= '2026-09-01T00:00:00'
+  AND v.fecha_hora < '2026-10-01T00:00:00'
+GROUP BY c.dni_cuit, c.nombre, c.apellido
+HAVING COUNT(DISTINCT p.sku) >= 2
+   AND SUM(d.cantidad * d.precio_uni_historico) >
+       (SELECT AVG(v2.monto_total)
+        FROM VENTA v2
+        WHERE v2.estado = 'Abonado'
+          AND v2.fecha_hora >= '2026-09-01T00:00:00'
+          AND v2.fecha_hora < '2026-10-01T00:00:00')
+ORDER BY total_comprado DESC, c.dni_cuit;
+GO
