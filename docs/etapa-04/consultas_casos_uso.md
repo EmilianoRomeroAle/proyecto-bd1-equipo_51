@@ -157,6 +157,45 @@ Para comprobar las consultas, se comparan sus resultados con el lote de referenc
 | C06 | Cero filas: todos los productos tienen ventas abonadas dentro del período. |
 | C07 | Tres productos superan el promedio de su propia categoría: CPU Intel, GPU MSI y RAM Corsair. |
 
+## C08 — Inventario disponible hasta 20 unidades
+
+**Necesidad:** consultar los productos que tienen como máximo 20 unidades disponibles para la venta.
+
+**Estrategia:** consultar `PRODUCTO`, calcular `stock_actual - stock_reservado` y filtrar los valores menores o iguales a 20. El resultado se ordena por disponibilidad. Es una consulta de existencias actuales y no aplica el período de ventas.
+
+**Columnas:** `sku`, `marca`, `modelo`, `stock_actual`, `stock_reservado` y `stock_disponible`.
+
+**Resultado esperado:** siete productos. Como todas las reservas del lote son cero, el stock disponible coincide con el actual.
+
+| SKU | Stock actual | Reservado | Disponible |
+| --- | ---: | ---: | ---: |
+| GPU-MSI-7600XT | 8 | 0 | 8 |
+| MON-LG-24GN60R | 10 | 0 | 10 |
+| GPU-ASU-4060 | 12 | 0 | 12 |
+| PSU-COR-RM750E | 14 | 0 | 14 |
+| MB-GIG-B550M | 15 | 0 | 15 |
+| CPU-INT-13400F | 18 | 0 | 18 |
+| RAM-COR-VEN32 | 20 | 0 | 20 |
+
+## Comprobación de resultados
+
+Para comprobar las consultas, se comparan sus resultados con el lote de referencia después de cargarlo en una base de prueba. Cada consulta se ejecuta por separado. La repetición de datos de cabecera en un comprobante no implica ventas nuevas.
+
+| Consulta | Comprobación sobre el lote |
+| --- | --- |
+| C01 | Dos renglones: 90.000,00 + 215.000,00 = 305.000,00. El total repetido en cada fila no se suma nuevamente. |
+| C02 | Siete categorías, 21 unidades y 3.589.000,00. La suma de ventas por categoría no equivale al número de comprobantes. |
+| C03 | Promedio por venta de 358.900,00 y cuatro clientes seleccionados. Se cuentan SKU distintos, no unidades. |
+| C04 | Ventas 1, 5, 8 y 10, con dos medios cada una y suma abonada igual a la cabecera. |
+| C05 | Ventas 1, 4, 5, 8 y 10; incluyen 2, 2, 2, 3 y 3 categorías, respectivamente. |
+| C06 | Cero filas: todos los productos tienen ventas abonadas dentro del período. |
+| C07 | Tres productos superan el promedio de su propia categoría: CPU Intel, GPU MSI y RAM Corsair. |
+| C08 | Siete productos tienen hasta 20 unidades disponibles. El cálculo utiliza stock actual menos reservado. |
+
+Al contrastar importes no se unen los pagos con los renglones de detalle en una misma suma: esa combinación puede multiplicar filas. C04 mantiene separados ambos conjuntos. En las consultas agrupadas por venta o categoría se suman los subtotales históricos del detalle, evitando sumar cabeceras repetidas.
+
+Los conteos con `DISTINCT` deben conservarse aunque un producto se divida en varios renglones. Para revisar el filtro temporal, una venta del último instante de septiembre debe quedar incluida y una del comienzo de octubre debe quedar excluida.
+
 Al contrastar importes no se unen los pagos con los renglones de detalle en una misma suma: esa combinación puede multiplicar filas. C04 mantiene separados ambos conjuntos. En las consultas agrupadas por venta o categoría se suman los subtotales históricos del detalle, evitando sumar cabeceras repetidas.
 
 Los conteos con `DISTINCT` deben conservarse aunque un producto se divida en varios renglones. Para revisar el filtro temporal, una venta del último instante de septiembre debe quedar incluida y una del comienzo de octubre debe quedar excluida.
