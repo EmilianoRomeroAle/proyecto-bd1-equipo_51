@@ -65,3 +65,54 @@ La suma de los importes es 3.589.000,00. La cantidad de ventas por categoría no
 | Sofia Rodriguez | 35444333 | 1 | 2 | 378.000,00 |
 
 Comprar dos unidades del mismo SKU no alcanza para cumplir la condición de dos productos distintos.
+
+## C04 — Ventas con varios medios de pago
+
+**Necesidad:** encontrar las ventas abonadas mediante más de un medio y comprobar que los importes registrados cubren su total.
+
+**Estrategia:** unir `VENTA`, `CLIENTE`, `PAGA_CON` y `METODO_PAGO`; filtrar estado y período; agrupar por venta y sus datos de cliente. `HAVING` exige más de un medio de pago y que `SUM(monto_abonado)` coincida con `monto_total`.
+
+**Columnas:** `codigo_venta`, `fecha_hora`, `dni_cuit`, `nombre`, `apellido`, `cantidad_metodos`, `total_abonado` y `total_venta`.
+
+**Resultado esperado:** cuatro ventas, cada una con dos medios y sin diferencia de importes.
+
+| Venta | Medios | Total de cabecera | Suma abonada |
+| ---: | ---: | ---: | ---: |
+| 1 | 2 | 305.000,00 | 305.000,00 |
+| 5 | 2 | 575.000,00 | 575.000,00 |
+| 8 | 2 | 443.000,00 | 443.000,00 |
+| 10 | 2 | 655.000,00 | 655.000,00 |
+
+## C05 — Ventas de varias categorías
+
+**Necesidad:** reconocer comprobantes que combinan productos de dos o más categorías.
+
+**Estrategia:** unir `VENTA`, `DETALLE_VENTA`, `PRODUCTO` y `CATEGORIA`; filtrar estado y período; agrupar por venta. Se cuentan categorías distintas y se seleccionan los grupos con al menos dos mediante `HAVING`.
+
+**Columnas:** `codigo_venta`, `fecha_hora`, `categorias_distintas`, `unidades_vendidas` y `total_calculado`.
+
+**Resultado esperado:** cinco ventas.
+
+| Venta | Categorías distintas | Unidades | Importe |
+| ---: | ---: | ---: | ---: |
+| 1 | 2 | 3 | 305.000,00 |
+| 4 | 2 | 2 | 378.000,00 |
+| 5 | 2 | 2 | 575.000,00 |
+| 8 | 3 | 3 | 443.000,00 |
+| 10 | 3 | 4 | 655.000,00 |
+
+## Comprobación de resultados
+
+Para comprobar las consultas, se comparan sus resultados con el lote de referencia después de cargarlo en una base de prueba. Cada consulta se ejecuta por separado. La repetición de datos de cabecera en un comprobante no implica ventas nuevas.
+
+| Consulta | Comprobación sobre el lote |
+| --- | --- |
+| C01 | Dos renglones: 90.000,00 + 215.000,00 = 305.000,00. El total repetido en cada fila no se suma nuevamente. |
+| C02 | Siete categorías, 21 unidades y 3.589.000,00. La suma de ventas por categoría no equivale al número de comprobantes. |
+| C03 | Promedio por venta de 358.900,00 y cuatro clientes seleccionados. Se cuentan SKU distintos, no unidades. |
+| C04 | Ventas 1, 5, 8 y 10, con dos medios cada una y suma abonada igual a la cabecera. |
+| C05 | Ventas 1, 4, 5, 8 y 10; incluyen 2, 2, 2, 3 y 3 categorías, respectivamente. |
+
+Al contrastar importes no se unen los pagos con los renglones de detalle en una misma suma: esa combinación puede multiplicar filas. C04 mantiene separados ambos conjuntos. En las consultas agrupadas por venta o categoría se suman los subtotales históricos del detalle, evitando sumar cabeceras repetidas.
+
+Los conteos con `DISTINCT` deben conservarse aunque un producto se divida en varios renglones. Para revisar el filtro temporal, una venta del último instante de septiembre debe quedar incluida y una del comienzo de octubre debe quedar excluida.
