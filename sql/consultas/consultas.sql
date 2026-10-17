@@ -80,3 +80,47 @@ HAVING COUNT(DISTINCT p.sku) >= 2
           AND v2.fecha_hora < '2026-10-01T00:00:00')
 ORDER BY total_comprado DESC, c.dni_cuit;
 GO
+
+-- C04. Ventas abonadas mediante varios medios de pago
+-- Se muestran las ventas con dos o mas medios y cuyo pago coincide con el total.
+-- No se unen los detalles, para evitar multiplicar los importes de los pagos.
+SELECT v.codigo_venta,
+       v.fecha_hora,
+       c.dni_cuit,
+       c.nombre,
+       c.apellido,
+       COUNT(m.codigo_metodo) AS cantidad_metodos,
+       SUM(pc.monto_abonado) AS total_abonado,
+       v.monto_total AS total_venta
+FROM VENTA v
+JOIN CLIENTE c ON c.dni_cuit = v.dni_cuit
+JOIN PAGA_CON pc ON pc.codigo_venta = v.codigo_venta
+JOIN METODO_PAGO m ON m.codigo_metodo = pc.codigo_metodo
+WHERE v.estado = 'Abonado'
+  AND v.fecha_hora >= '2026-09-01T00:00:00'
+  AND v.fecha_hora < '2026-10-01T00:00:00'
+GROUP BY v.codigo_venta, v.fecha_hora, c.dni_cuit,
+         c.nombre, c.apellido, v.monto_total
+HAVING COUNT(m.codigo_metodo) > 1
+   AND SUM(pc.monto_abonado) = v.monto_total
+ORDER BY v.codigo_venta;
+GO
+
+-- C05. Ventas que incluyen productos de varias categorias
+-- Una categoria se cuenta una sola vez aunque tenga varios productos vendidos.
+SELECT v.codigo_venta,
+       v.fecha_hora,
+       COUNT(DISTINCT c.codigo_categoria) AS categorias_distintas,
+       SUM(d.cantidad) AS unidades_vendidas,
+       SUM(d.cantidad * d.precio_uni_historico) AS total_calculado
+FROM VENTA v
+JOIN DETALLE_VENTA d ON d.codigo_venta = v.codigo_venta
+JOIN PRODUCTO p ON p.sku = d.sku
+JOIN CATEGORIA c ON c.codigo_categoria = p.codigo_categoria
+WHERE v.estado = 'Abonado'
+  AND v.fecha_hora >= '2026-09-01T00:00:00'
+  AND v.fecha_hora < '2026-10-01T00:00:00'
+GROUP BY v.codigo_venta, v.fecha_hora
+HAVING COUNT(DISTINCT c.codigo_categoria) >= 2
+ORDER BY v.codigo_venta;
+GO
