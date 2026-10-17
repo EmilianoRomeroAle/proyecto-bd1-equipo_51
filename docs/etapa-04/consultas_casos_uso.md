@@ -116,3 +116,47 @@ Para comprobar las consultas, se comparan sus resultados con el lote de referenc
 Al contrastar importes no se unen los pagos con los renglones de detalle en una misma suma: esa combinación puede multiplicar filas. C04 mantiene separados ambos conjuntos. En las consultas agrupadas por venta o categoría se suman los subtotales históricos del detalle, evitando sumar cabeceras repetidas.
 
 Los conteos con `DISTINCT` deben conservarse aunque un producto se divida en varios renglones. Para revisar el filtro temporal, una venta del último instante de septiembre debe quedar incluida y una del comienzo de octubre debe quedar excluida.
+
+## C06 — Productos sin ventas en el período
+
+**Necesidad:** consultar productos del catálogo que no participaron en ventas abonadas durante septiembre.
+
+**Estrategia:** unir `PRODUCTO` con `CATEGORIA` y usar una subconsulta correlacionada con `NOT EXISTS` sobre `DETALLE_VENTA` y `VENTA`. La ausencia se evalúa para cada SKU dentro del estado y período indicados.
+
+**Columnas:** `sku`, `marca`, `modelo`, `codigo_categoria`, `nombre_categoria` y `precio_lista`.
+
+**Resultado esperado:** cero filas. Los diez productos del lote aparecen al menos una vez en las ventas abonadas del período. La condición significa que no hubo ventas en ese período, no que el producto nunca se vendió.
+
+## C07 — Productos sobre el promedio de su categoría
+
+**Necesidad:** comparar el precio de lista de un producto con el precio promedio del catálogo de su propia categoría.
+
+**Estrategia:** unir `PRODUCTO` y `CATEGORIA`. Una subconsulta correlacionada calcula `AVG(precio_lista)` para la categoría del producto; se conservan los precios superiores a ese promedio. Se comparan precios vigentes, sin usar los precios históricos de ventas.
+
+**Columnas:** `sku`, `marca`, `modelo`, `codigo_categoria`, `nombre_categoria`, `precio_lista` y `promedio_categoria`.
+
+**Resultado esperado:** tres productos.
+
+| SKU | Precio de lista | Promedio de su categoría |
+| --- | ---: | ---: |
+| CPU-INT-13400F | 248.000,00 | 231.500,00 |
+| GPU-MSI-7600XT | 465.000,00 | 442.500,00 |
+| RAM-COR-VEN32 | 135.000,00 | 90.000,00 |
+
+## Comprobación de resultados
+
+Para comprobar las consultas, se comparan sus resultados con el lote de referencia después de cargarlo en una base de prueba. Cada consulta se ejecuta por separado. La repetición de datos de cabecera en un comprobante no implica ventas nuevas.
+
+| Consulta | Comprobación sobre el lote |
+| --- | --- |
+| C01 | Dos renglones: 90.000,00 + 215.000,00 = 305.000,00. El total repetido en cada fila no se suma nuevamente. |
+| C02 | Siete categorías, 21 unidades y 3.589.000,00. La suma de ventas por categoría no equivale al número de comprobantes. |
+| C03 | Promedio por venta de 358.900,00 y cuatro clientes seleccionados. Se cuentan SKU distintos, no unidades. |
+| C04 | Ventas 1, 5, 8 y 10, con dos medios cada una y suma abonada igual a la cabecera. |
+| C05 | Ventas 1, 4, 5, 8 y 10; incluyen 2, 2, 2, 3 y 3 categorías, respectivamente. |
+| C06 | Cero filas: todos los productos tienen ventas abonadas dentro del período. |
+| C07 | Tres productos superan el promedio de su propia categoría: CPU Intel, GPU MSI y RAM Corsair. |
+
+Al contrastar importes no se unen los pagos con los renglones de detalle en una misma suma: esa combinación puede multiplicar filas. C04 mantiene separados ambos conjuntos. En las consultas agrupadas por venta o categoría se suman los subtotales históricos del detalle, evitando sumar cabeceras repetidas.
+
+Los conteos con `DISTINCT` deben conservarse aunque un producto se divida en varios renglones. Para revisar el filtro temporal, una venta del último instante de septiembre debe quedar incluida y una del comienzo de octubre debe quedar excluida.
