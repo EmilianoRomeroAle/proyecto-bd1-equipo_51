@@ -124,3 +124,46 @@ GROUP BY v.codigo_venta, v.fecha_hora
 HAVING COUNT(DISTINCT c.codigo_categoria) >= 2
 ORDER BY v.codigo_venta;
 GO
+
+-- C06. Productos sin ventas abonadas en el periodo
+-- NOT EXISTS comprueba que no haya una venta del producto con esos filtros.
+-- Haber sido vendido fuera del periodo no lo excluye de este listado.
+SELECT p.sku,
+       p.marca,
+       p.modelo,
+       c.codigo_categoria,
+       c.nombre_categoria,
+       p.precio_lista
+FROM PRODUCTO p
+JOIN CATEGORIA c ON c.codigo_categoria = p.codigo_categoria
+WHERE NOT EXISTS
+      (SELECT 1
+       FROM DETALLE_VENTA d
+       JOIN VENTA v ON v.codigo_venta = d.codigo_venta
+       WHERE d.sku = p.sku
+         AND v.estado = 'Abonado'
+         AND v.fecha_hora >= '2026-09-01T00:00:00'
+         AND v.fecha_hora < '2026-10-01T00:00:00')
+ORDER BY c.codigo_categoria, p.sku;
+GO
+
+-- C07. Productos con precio superior al promedio de su categoria
+-- Las subconsultas se relacionan con la categoria del producto exterior.
+-- Se compara el precio de lista actual; no los precios historicos de las ventas.
+SELECT p.sku,
+       p.marca,
+       p.modelo,
+       c.codigo_categoria,
+       c.nombre_categoria,
+       p.precio_lista,
+       (SELECT AVG(p2.precio_lista)
+        FROM PRODUCTO p2
+        WHERE p2.codigo_categoria = p.codigo_categoria) AS promedio_categoria
+FROM PRODUCTO p
+JOIN CATEGORIA c ON c.codigo_categoria = p.codigo_categoria
+WHERE p.precio_lista >
+      (SELECT AVG(p3.precio_lista)
+       FROM PRODUCTO p3
+       WHERE p3.codigo_categoria = p.codigo_categoria)
+ORDER BY c.codigo_categoria, p.sku;
+GO
