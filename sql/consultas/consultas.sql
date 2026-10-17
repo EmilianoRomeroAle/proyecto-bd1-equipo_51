@@ -167,3 +167,17 @@ WHERE p.precio_lista >
        WHERE p3.codigo_categoria = p.codigo_categoria)
 ORDER BY c.codigo_categoria, p.sku;
 GO
+
+
+-- C08. Productos con hasta 20 unidades disponibles
+-- Es una consulta de existencias actuales, sin filtro de fechas.
+SELECT sku,
+       marca,
+       modelo,
+       stock_actual,
+       stock_reservado,
+       stock_actual - stock_reservado AS stock_disponible
+FROM PRODUCTO
+WHERE stock_actual - stock_reservado <= 20
+ORDER BY stock_disponible, sku;
+GO
