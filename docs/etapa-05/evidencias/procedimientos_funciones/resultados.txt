@@ -1,0 +1,24 @@
+sku                                                precio_lista   stock_actual stock_reservado
+-------------------------------------------------- -------------- ------------ ---------------
+ET5-REG-01                                                1000.00           50               0
+ET5-REG-02                                                 500.00           30               0
+codigo_venta estado     monto_total   
+------------ ---------- --------------
+       95101 Pendiente         3800.00
+codigo_venta id          sku                                                cantidad    precio_uni_historico
+------------ ----------- -------------------------------------------------- ----------- --------------------
+       95101           1 ET5-REG-01                                                   2               900.00
+       95101           2 ET5-REG-02                                                   3               400.00
+       95101           3 ET5-REG-01                                                   1               800.00
+       95101           4 ET5-REG-02                                                   1                  .00
+sku                                                stock_actual stock_reservado disponible 
+-------------------------------------------------- ------------ --------------- -----------
+ET5-REG-01                                                   50               3          47
+ET5-REG-02                                                   30               4          26
+Se cambió el contexto de la base de datos a 'tienda_hardware_etapa05_verificacion'.
+OK 1: alta, primer renglon, reserva y funciones.
+OK 2: varios renglones, SKU repetido y precio historico.
+OK 3: duplicados, datos invalidos y stock insuficiente sin cambios.
+OK 4: bloqueo de ventas abonadas, canceladas y vencidas.
+OK 5: funcion sin renglones y reversion ante error de importe.
+OK FINAL: pruebas completas; ventas eliminadas y reservas en cero.
