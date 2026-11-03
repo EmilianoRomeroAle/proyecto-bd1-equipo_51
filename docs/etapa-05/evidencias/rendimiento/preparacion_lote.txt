@@ -1,0 +1,9 @@
+cantidad_solicitada ventas_del_rango primera_fecha           ultima_fecha            importe_total                           
+------------------- ---------------- ----------------------- ----------------------- ----------------------------------------
+            1000000          1000000 2021-01-01 12:00:00.000 2025-12-30 12:00:00.000                            1000000000.00
+detalles_del_rango pagos_del_rango
+------------------ ---------------
+           1000000         1000000
+Se cambió el contexto de la base de datos a 'tienda_hardware_rendimiento_etapa05'.
+Lote historico cargado con una venta, un detalle y un pago por operacion.
+El lote no incluye mediciones ni indices. Esa demostracion corresponde al integrante 5.

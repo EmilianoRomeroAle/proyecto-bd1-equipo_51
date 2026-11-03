@@ -1,0 +1,27 @@
+sku                                                precio_lista   stock_actual stock_reservado
+-------------------------------------------------- -------------- ------------ ---------------
+ET5-AUD-01                                                1175.00           49               2
+ET5-AUD-02                                                 550.00           31               1
+id_auditoria         sku                                                fecha_hora                             usuario                                                                                                      
+                    tipo_operacion precio_anterior precio_nuevo   stock_actual_anterior stock_actual_nuevo stock_reservado_anterior stock_reservado_nuevo
+-------------------- -------------------------------------------------- -------------------------------------- -------------------------------------------------------------------------------------------------------------
+------------------- -------------- --------------- -------------- --------------------- ------------------ ------------------------ ---------------------
+                  74 ET5-AUD-01                                                    2026-11-03 12:26:08.0420584 DESKTOP-PG85C10\Fernanda                                                                                     
+                    UPDATE                 1000.00        1100.00                    50                 50                        0                     0
+                  75 ET5-AUD-01                                                    2026-11-03 12:26:08.0420584 DESKTOP-PG85C10\Fernanda                                                                                     
+                    UPDATE                 1100.00        1100.00                    50                 48                        0                     1
+                  76 ET5-AUD-02                                                    2026-11-03 12:26:08.0450596 DESKTOP-PG85C10\Fernanda                                                                                     
+                    UPDATE                  500.00         550.00                    30                 31                        0                     1
+                  77 ET5-AUD-01                                                    2026-11-03 12:26:08.0450596 DESKTOP-PG85C10\Fernanda                                                                                     
+                    UPDATE                 1100.00        1150.00                    48                 49                        1                     2
+                  78 ET5-AUD-01                                                    2026-11-03 12:26:08.0470599 DESKTOP-PG85C10\Fernanda                                                                                     
+                    UPDATE                 1150.00        1175.00                    49                 49                        2                     2
+Se cambió el contexto de la base de datos a 'tienda_hardware_etapa05_verificacion'.
+P1 OK: precio anterior/nuevo, existencias, fecha, usuario y operacion.
+P2 OK: cambio de stock fisico y reservado.
+P3 OK: UPDATE de varias filas, con sus valores correspondientes.
+P4 OK: un cambio de descripcion no genera registros irrelevantes.
+P5 OK: UPDATE sin cambios no agrega auditoria.
+P6 OK: precio historico y total conservados.
+P7 OK: ROLLBACK revierte productos, venta y auditorias.
+AUDITORIA: 7 pruebas correctas. Datos de demostracion revertidos.

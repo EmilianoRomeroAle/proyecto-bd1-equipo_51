@@ -1,0 +1,25 @@
+codigo_venta estado     monto_total   
+------------ ---------- --------------
+       95401 Abonado           3500.00
+       95402 Cancelado         1000.00
+codigo_venta codigo_metodo monto_abonado 
+------------ ------------- --------------
+       95401          9051        1500.00
+       95401          9052        2000.00
+sku                                                precio_lista   stock_actual stock_reservado
+-------------------------------------------------- -------------- ------------ ---------------
+ET5-INT-01                                                1200.00           47               0
+ET5-INT-02                                                 500.00           29               0
+Se cambió el contexto de la base de datos a 'tienda_hardware_etapa05_verificacion'.
+I01. Venta de varios renglones y un SKU repetido.
+Correcto: total 3500; reservas de 3 y 1; sin baja fisica.
+I02. Pagos parciales, acumulacion por metodo y confirmacion.
+Correcto: Abonado; pagos 1500 y 2000; existencias 47 y 29, sin reservas.
+I03. Precio actual, precio historico y auditoria.
+Correcto: precio actual 1200, historico 1000 y total historico 3500.
+Correcto: se rechazo el agregado posterior a la venta abonada.
+I04. Error de pago y reversion de una operacion con varios pasos.
+Correcto: se revirtieron renglon, total, reserva y auditoria del segundo paso.
+I05. Vencimiento y segunda ejecucion sin duplicar la liberacion.
+Correcto: pendiente vencida cancelada, sin aumentar stock fisico ni liberar dos veces.
+Prueba de integracion terminada. Productos de prueba restaurados.
