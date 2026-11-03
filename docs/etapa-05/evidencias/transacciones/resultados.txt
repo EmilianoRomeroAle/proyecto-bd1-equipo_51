@@ -1,0 +1,35 @@
+codigo_venta estado     monto_total   
+------------ ---------- --------------
+       95201 Abonado           4000.00
+       95210 Cancelado         3000.00
+       95211 Cancelado         2000.00
+       95212 Pendiente         1000.00
+       95213 Pendiente         1000.00
+       95214 Cancelado         1000.00
+       95215 Pendiente         2500.00
+codigo_venta codigo_metodo monto_abonado 
+------------ ------------- --------------
+       95201          9051        1500.00
+       95201          9052        2500.00
+       95210          9051         200.00
+       95210          9052         300.00
+       95213          9051        1000.00
+sku                                                stock_actual stock_reservado
+-------------------------------------------------- ------------ ---------------
+ET5-PAG-01                                                   47               4
+ET5-PAG-02                                                   28               0
+Se cambió el contexto de la base de datos a 'tienda_hardware_etapa05_verificacion'.
+OK 01: pago parcial sin descontar existencias.
+OK 02: acumulacion en un mismo metodo.
+OK 03: multipago, cuadre y descuento agrupado por producto.
+OK 04: venta abonada protegida frente a otro pago o confirmacion.
+OK 05: reserva insuficiente y ROLLBACK del pago final.
+OK 06: ROLLBACK de pago, stock, reserva y estado ante fallo intermedio.
+OK 07: sobrepago, NULL, cero, negativo y metodo inexistente rechazados.
+OK 08: confirmacion rechazada por pago incompleto y total inconsistente.
+OK 09: venta sin renglones y venta inexistente rechazadas.
+OK 10: pago vencido, confirmacion vencida y pago cancelado rechazados.
+OK 11: vencimiento de 24 horas, liberacion agrupada y conservacion de registros.
+OK 12: nueva ejecucion de cancelacion sin duplicar efectos.
+OK 13: cancelacion con reservas inconsistentes revierte todo el lote.
+PRUEBAS DE TRANSACCIONES COMPLETADAS.
