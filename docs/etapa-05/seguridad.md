@@ -1,10 +1,6 @@
 # Manejo de Permisos y Roles de Seguridad — Etapa V
 
 **Equipo:** 51  
-**Responsable del bloque:** Integrante 4  
-**Motor:** Microsoft SQL Server Express · SSMS  
-**Base de datos:** `tienda_hardware`
-
 ---
 
 ## 1. Definición y Objetivo
