@@ -1,0 +1,238 @@
+Evidencia de mediciones - Integrante 5: Romero Alegre Ubaldo Diego Emiliano (DNI 43930524).
+Etapa V: optimizacion mediante indices sobre la base tienda_hardware_rendimiento_etapa05
+(DDL y DML originales + lote sql/tecnico/91_lote_rendimiento.sql del integrante 3:
+1.000.010 ventas entre 2021-01-01 y 2026-09-22; instancia local de SQL Server 2022).
+Captura de sqlcmd recortada: se omiten las 49.320 filas de datos de cada corrida, los
+mensajes con CPU/elapsed = 0 ms y los avisos de rutina de DBCC. El resto es salida real,
+sin editar valores; el espaciado de columnas se compacto durante la captura a texto.
+
+========================== PARTE A: sql/tecnico/06_indices.sql ==========================
+
+esquema tabla indice tipo es_clave_primaria es_unico columnas_clave columnas_incluidas
+------- ----- ------ ---- ----------------- -------- -------------- ------------------
+dbo CATEGORIA PK_CATEGORIA CLUSTERED 1 1 codigo_categoria NULL
+dbo CATEGORIA UQ_CATEGORIA_nombre NONCLUSTERED 0 1 nombre_categoria NULL
+dbo CLIENTE PK_CLIENTE CLUSTERED 1 1 dni_cuit NULL
+dbo CLIENTE UQ_CLIENTE_email NONCLUSTERED 0 1 email NULL
+dbo DETALLE_VENTA PK_DETALLE_VENTA CLUSTERED 1 1 codigo_venta, id NULL
+dbo METODO_PAGO PK_METODO_PAGO CLUSTERED 1 1 codigo_metodo NULL
+dbo METODO_PAGO UQ_METODO_PAGO_nombre NONCLUSTERED 0 1 nombre_metodo NULL
+dbo PAGA_CON PK_PAGA_CON CLUSTERED 1 1 codigo_venta, codigo_metodo NULL
+dbo PRODUCTO PK_PRODUCTO CLUSTERED 1 1 sku NULL
+dbo VENTA PK_VENTA CLUSTERED 1 1 codigo_venta NULL
+
+(10 rows affected)
+tabla indice filas espacio_reservado_MB espacio_usado_MB
+----- ------ ----- -------------------- ----------------
+VENTA PK_VENTA 1000010 49.820312 49.648437
+VENTA IX_VENTA_fecha_hora 1000010 17.585937 17.484375
+VENTA IX_VENTA_fecha_cobertura 1000010 36.898437 36.828125
+
+(3 rows affected)
+
+=================== PARTE B: sql/tecnico/pruebas/06_pruebas_rendimiento.sql ===================
+
+=== 0. Contexto de los datos ===
+ventas_totales primera ultima
+-------------- ------- ------
+1000010 2021-01-01 12:00:00.000 2026-09-22 19:35:00.000
+
+(1 rows affected)
+anio ventas
+---- ------
+2021 200020
+2022 200020
+2023 200020
+2024 200568
+2025 199372
+2026 10
+
+(6 rows affected)
+=== 1. Escenario 1: sin indice adicional ===
+
+Escenario 1 - corrida 1 (fria: sin plan y sin paginas en cache)
+
+SQL Server parse and compile time:
+   CPU time = 15 ms, elapsed time = 81 ms.
+codigo_venta fecha_hora estado monto_total
+------------ ---------- ------ -----------
+
+(49320 rows affected)
+Table 'VENTA'. Scan count 3, logical reads 6441, physical reads 1, page server reads 0, read-ahead reads 6361, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Rows Executes StmtText StmtId NodeId Parent PhysicalOp LogicalOp Argument DefinedValues EstimateRows EstimateIO EstimateCPU AvgRowSize TotalSubtreeCost OutputList Warnings Type Parallel EstimateExecutions
+---- -------- -------- ------ ------ ------ ---------- --------- -------- ------------- ------------ ---------- ----------- ---------- ---------------- ---------- -------- ---- -------- ------------------
+49320 1 SELECT [codigo_venta],[fecha_hora],[estado],[monto_total] FROM [dbo].[VENTA] WHERE [fecha_hora]>=@1 AND [fecha_hora]<@2 1 1 0 NULL NULL NULL NULL 49876.984 NULL NULL NULL 5.8374596 NULL NULL SELECT 0 NULL
+49320 1   |--Parallelism(Gather Streams) 1 2 1 Parallelism Gather Streams NULL NULL 49876.984 0.0 0.1560978 37 5.8374596 [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] NULL PLAN_ROW 1 1.0
+49320 2        |--Clustered Index Scan(OBJECT:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[PK_VENTA]), WHERE:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]>=CONVERT_IMPLICIT(datetime,[@1],0) AND [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]<CONVERT_IMPLICIT(datetime,[@2],0))) 1 3 2 Clustered Index Scan Clustered Index Scan OBJECT:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[PK_VENTA]), WHERE:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]>=CONVERT_IMPLICIT(datetime,[@1],0) AND [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]<CONVERT_IMPLICIT(datetime,[@2],0)) [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] 49876.984 4.6912732 0.55008399 37 5.2413573 [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] NULL PLAN_ROW 1 1.0
+
+(3 rows affected)
+
+ SQL Server Execution Times:
+   CPU time = 218 ms,  elapsed time = 22973 ms.
+Escenario 1 - corrida 2 (cache tibia: mismas columnas y filtro)
+
+codigo_venta fecha_hora estado monto_total
+------------ ---------- ------ -----------
+
+(49320 rows affected)
+Table 'VENTA'. Scan count 3, logical reads 6433, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Rows Executes StmtText StmtId NodeId Parent PhysicalOp LogicalOp Argument DefinedValues EstimateRows EstimateIO EstimateCPU AvgRowSize TotalSubtreeCost OutputList Warnings Type Parallel EstimateExecutions
+---- -------- -------- ------ ------ ------ ---------- --------- -------- ------------- ------------ ---------- ----------- ---------- ---------------- ---------- -------- ---- -------- ------------------
+49320 1 SELECT [codigo_venta],[fecha_hora],[estado],[monto_total] FROM [dbo].[VENTA] WHERE [fecha_hora]>=@1 AND [fecha_hora]<@2 1 1 0 NULL NULL NULL NULL 49876.984 NULL NULL NULL 5.8374596 NULL NULL SELECT 0 NULL
+49320 1   |--Parallelism(Gather Streams) 1 2 1 Parallelism Gather Streams NULL NULL 49876.984 0.0 0.1560978 37 5.8374596 [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] NULL PLAN_ROW 1 1.0
+49320 2        |--Clustered Index Scan(OBJECT:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[PK_VENTA]), WHERE:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]>=CONVERT_IMPLICIT(datetime,[@1],0) AND [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]<CONVERT_IMPLICIT(datetime,[@2],0))) 1 3 2 Clustered Index Scan Clustered Index Scan OBJECT:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[PK_VENTA]), WHERE:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]>=CONVERT_IMPLICIT(datetime,[@1],0) AND [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]<CONVERT_IMPLICIT(datetime,[@2],0)) [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] 49876.984 4.6912732 0.55008399 37 5.2413573 [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] NULL PLAN_ROW 1 1.0
+
+(3 rows affected)
+
+ SQL Server Execution Times:
+   CPU time = 220 ms,  elapsed time = 22941 ms.
+Escenario 1 - corrida 3 (cache tibia: mismas columnas y filtro)
+
+codigo_venta fecha_hora estado monto_total
+------------ ---------- ------ -----------
+
+(49320 rows affected)
+Table 'VENTA'. Scan count 3, logical reads 6441, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Rows Executes StmtText StmtId NodeId Parent PhysicalOp LogicalOp Argument DefinedValues EstimateRows EstimateIO EstimateCPU AvgRowSize TotalSubtreeCost OutputList Warnings Type Parallel EstimateExecutions
+---- -------- -------- ------ ------ ------ ---------- --------- -------- ------------- ------------ ---------- ----------- ---------- ---------------- ---------- -------- ---- -------- ------------------
+49320 1 SELECT [codigo_venta],[fecha_hora],[estado],[monto_total] FROM [dbo].[VENTA] WHERE [fecha_hora]>=@1 AND [fecha_hora]<@2 1 1 0 NULL NULL NULL NULL 49876.984 NULL NULL NULL 5.8374596 NULL NULL SELECT 0 NULL
+49320 1   |--Parallelism(Gather Streams) 1 2 1 Parallelism Gather Streams NULL NULL 49876.984 0.0 0.1560978 37 5.8374596 [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] NULL PLAN_ROW 1 1.0
+49320 2        |--Clustered Index Scan(OBJECT:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[PK_VENTA]), WHERE:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]>=CONVERT_IMPLICIT(datetime,[@1],0) AND [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]<CONVERT_IMPLICIT(datetime,[@2],0))) 1 3 2 Clustered Index Scan Clustered Index Scan OBJECT:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[PK_VENTA]), WHERE:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]>=CONVERT_IMPLICIT(datetime,[@1],0) AND [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]<CONVERT_IMPLICIT(datetime,[@2],0)) [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] 49876.984 4.6912732 0.55008399 37 5.2413573 [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] NULL PLAN_ROW 1 1.0
+
+(3 rows affected)
+
+ SQL Server Execution Times:
+   CPU time = 344 ms,  elapsed time = 22532 ms.
+
+(1 rows affected)
+=== 2. Escenario 2: indice no agrupado simple sobre fecha_hora ===
+
+Escenario 2 - corrida 1 (fria: sin plan y sin paginas en cache)
+
+SQL Server parse and compile time:
+   CPU time = 16 ms, elapsed time = 90 ms.
+codigo_venta fecha_hora estado monto_total
+------------ ---------- ------ -----------
+
+(49320 rows affected)
+Table 'VENTA'. Scan count 3, logical reads 6441, physical reads 1, page server reads 0, read-ahead reads 6361, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Rows Executes StmtText StmtId NodeId Parent PhysicalOp LogicalOp Argument DefinedValues EstimateRows EstimateIO EstimateCPU AvgRowSize TotalSubtreeCost OutputList Warnings Type Parallel EstimateExecutions
+---- -------- -------- ------ ------ ------ ---------- --------- -------- ------------- ------------ ---------- ----------- ---------- ---------------- ---------- -------- ---- -------- ------------------
+49320 1 SELECT [codigo_venta],[fecha_hora],[estado],[monto_total] FROM [dbo].[VENTA] WHERE [fecha_hora]>=@1 AND [fecha_hora]<@2 1 1 0 NULL NULL NULL NULL 49594.0 NULL NULL NULL 5.8367352 NULL NULL SELECT 0 NULL
+49320 1   |--Parallelism(Gather Streams) 1 2 1 Parallelism Gather Streams NULL NULL 49594.0 0.0 0.15537386 37 5.8367352 [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] NULL PLAN_ROW 1 1.0
+49320 2        |--Clustered Index Scan(OBJECT:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[PK_VENTA]), WHERE:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]>='2023-01-01 00:00:00.000' AND [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]<'2023-04-01 00:00:00.000')) 1 3 2 Clustered Index Scan Clustered Index Scan OBJECT:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[PK_VENTA]), WHERE:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]>='2023-01-01 00:00:00.000' AND [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]<'2023-04-01 00:00:00.000') [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] 49594.0 4.6912732 0.55008399 37 5.2413573 [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] NULL PLAN_ROW 1 1.0
+
+(3 rows affected)
+
+ SQL Server Execution Times:
+   CPU time = 326 ms,  elapsed time = 18414 ms.
+Escenario 2 - corrida 2 (cache tibia: mismas columnas y filtro)
+
+codigo_venta fecha_hora estado monto_total
+------------ ---------- ------ -----------
+
+(49320 rows affected)
+Table 'VENTA'. Scan count 3, logical reads 6413, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Rows Executes StmtText StmtId NodeId Parent PhysicalOp LogicalOp Argument DefinedValues EstimateRows EstimateIO EstimateCPU AvgRowSize TotalSubtreeCost OutputList Warnings Type Parallel EstimateExecutions
+---- -------- -------- ------ ------ ------ ---------- --------- -------- ------------- ------------ ---------- ----------- ---------- ---------------- ---------- -------- ---- -------- ------------------
+49320 1 SELECT [codigo_venta],[fecha_hora],[estado],[monto_total] FROM [dbo].[VENTA] WHERE [fecha_hora]>=@1 AND [fecha_hora]<@2 1 1 0 NULL NULL NULL NULL 49594.0 NULL NULL NULL 5.8367352 NULL NULL SELECT 0 NULL
+49320 1   |--Parallelism(Gather Streams) 1 2 1 Parallelism Gather Streams NULL NULL 49594.0 0.0 0.15537386 37 5.8367352 [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] NULL PLAN_ROW 1 1.0
+49320 2        |--Clustered Index Scan(OBJECT:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[PK_VENTA]), WHERE:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]>='2023-01-01 00:00:00.000' AND [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]<'2023-04-01 00:00:00.000')) 1 3 2 Clustered Index Scan Clustered Index Scan OBJECT:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[PK_VENTA]), WHERE:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]>='2023-01-01 00:00:00.000' AND [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]<'2023-04-01 00:00:00.000') [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] 49594.0 4.6912732 0.55008399 37 5.2413573 [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] NULL PLAN_ROW 1 1.0
+
+(3 rows affected)
+
+ SQL Server Execution Times:
+   CPU time = 391 ms,  elapsed time = 12422 ms.
+Escenario 2 - corrida 3 (cache tibia: mismas columnas y filtro)
+
+codigo_venta fecha_hora estado monto_total
+------------ ---------- ------ -----------
+
+(49320 rows affected)
+Table 'VENTA'. Scan count 3, logical reads 6409, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Rows Executes StmtText StmtId NodeId Parent PhysicalOp LogicalOp Argument DefinedValues EstimateRows EstimateIO EstimateCPU AvgRowSize TotalSubtreeCost OutputList Warnings Type Parallel EstimateExecutions
+---- -------- -------- ------ ------ ------ ---------- --------- -------- ------------- ------------ ---------- ----------- ---------- ---------------- ---------- -------- ---- -------- ------------------
+49320 1 SELECT [codigo_venta],[fecha_hora],[estado],[monto_total] FROM [dbo].[VENTA] WHERE [fecha_hora]>=@1 AND [fecha_hora]<@2 1 1 0 NULL NULL NULL NULL 49594.0 NULL NULL NULL 5.8367352 NULL NULL SELECT 0 NULL
+49320 1   |--Parallelism(Gather Streams) 1 2 1 Parallelism Gather Streams NULL NULL 49594.0 0.0 0.15537386 37 5.8367352 [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] NULL PLAN_ROW 1 1.0
+49320 2        |--Clustered Index Scan(OBJECT:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[PK_VENTA]), WHERE:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]>='2023-01-01 00:00:00.000' AND [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]<'2023-04-01 00:00:00.000')) 1 3 2 Clustered Index Scan Clustered Index Scan OBJECT:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[PK_VENTA]), WHERE:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]>='2023-01-01 00:00:00.000' AND [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora]<'2023-04-01 00:00:00.000') [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] 49594.0 4.6912732 0.55008399 37 5.2413573 [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] NULL PLAN_ROW 1 1.0
+
+(3 rows affected)
+
+ SQL Server Execution Times:
+   CPU time = 219 ms,  elapsed time = 9811 ms.
+
+(1 rows affected)
+=== 3. Escenario 3: indice no agrupado con cobertura ===
+
+Escenario 3 - corrida 1 (fria: sin plan y sin paginas en cache)
+
+SQL Server parse and compile time:
+   CPU time = 15 ms, elapsed time = 444 ms.
+codigo_venta fecha_hora estado monto_total
+------------ ---------- ------ -----------
+
+(49320 rows affected)
+Table 'VENTA'. Scan count 1, logical reads 236, physical reads 1, page server reads 0, read-ahead reads 232, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Rows Executes StmtText StmtId NodeId Parent PhysicalOp LogicalOp Argument DefinedValues EstimateRows EstimateIO EstimateCPU AvgRowSize TotalSubtreeCost OutputList Warnings Type Parallel EstimateExecutions
+---- -------- -------- ------ ------ ------ ---------- --------- -------- ------------- ------------ ---------- ----------- ---------- ---------------- ---------- -------- ---- -------- ------------------
+49320 1 SELECT [codigo_venta],[fecha_hora],[estado],[monto_total] FROM [dbo].[VENTA] WHERE [fecha_hora]>=@1 AND [fecha_hora]<@2 1 1 0 NULL NULL NULL NULL 49594.0 NULL NULL NULL 0.22968726 NULL NULL SELECT 0 NULL
+49320 1   |--Index Seek(OBJECT:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[IX_VENTA_fecha_cobertura]), SEEK:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora] >= '2023-01-01 00:00:00.000' AND [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora] < '2023-04-01 00:00:00.000') ORDERED FORWARD) 1 2 1 Index Seek Index Seek OBJECT:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[IX_VENTA_fecha_cobertura]), SEEK:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora] >= '2023-01-01 00:00:00.000' AND [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora] < '2023-04-01 00:00:00.000') ORDERED FORWARD [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] 49594.0 0.17497686 5.4710399E-2 37 0.22968726 [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] NULL PLAN_ROW 0 1.0
+
+(2 rows affected)
+
+ SQL Server Execution Times:
+   CPU time = 32 ms,  elapsed time = 11211 ms.
+Escenario 3 - corrida 2 (cache tibia: mismas columnas y filtro)
+
+codigo_venta fecha_hora estado monto_total
+------------ ---------- ------ -----------
+
+(49320 rows affected)
+Table 'VENTA'. Scan count 1, logical reads 236, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Rows Executes StmtText StmtId NodeId Parent PhysicalOp LogicalOp Argument DefinedValues EstimateRows EstimateIO EstimateCPU AvgRowSize TotalSubtreeCost OutputList Warnings Type Parallel EstimateExecutions
+---- -------- -------- ------ ------ ------ ---------- --------- -------- ------------- ------------ ---------- ----------- ---------- ---------------- ---------- -------- ---- -------- ------------------
+49320 1 SELECT [codigo_venta],[fecha_hora],[estado],[monto_total] FROM [dbo].[VENTA] WHERE [fecha_hora]>=@1 AND [fecha_hora]<@2 1 1 0 NULL NULL NULL NULL 49594.0 NULL NULL NULL 0.22968726 NULL NULL SELECT 0 NULL
+49320 1   |--Index Seek(OBJECT:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[IX_VENTA_fecha_cobertura]), SEEK:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora] >= '2023-01-01 00:00:00.000' AND [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora] < '2023-04-01 00:00:00.000') ORDERED FORWARD) 1 2 1 Index Seek Index Seek OBJECT:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[IX_VENTA_fecha_cobertura]), SEEK:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora] >= '2023-01-01 00:00:00.000' AND [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora] < '2023-04-01 00:00:00.000') ORDERED FORWARD [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] 49594.0 0.17497686 5.4710399E-2 37 0.22968726 [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] NULL PLAN_ROW 0 1.0
+
+(2 rows affected)
+
+ SQL Server Execution Times:
+   CPU time = 47 ms,  elapsed time = 10877 ms.
+Escenario 3 - corrida 3 (cache tibia: mismas columnas y filtro)
+
+codigo_venta fecha_hora estado monto_total
+------------ ---------- ------ -----------
+
+(49320 rows affected)
+Table 'VENTA'. Scan count 1, logical reads 236, physical reads 0, page server reads 0, read-ahead reads 0, page server read-ahead reads 0, lob logical reads 0, lob physical reads 0, lob page server reads 0, lob read-ahead reads 0, lob page server read-ahead reads 0.
+Rows Executes StmtText StmtId NodeId Parent PhysicalOp LogicalOp Argument DefinedValues EstimateRows EstimateIO EstimateCPU AvgRowSize TotalSubtreeCost OutputList Warnings Type Parallel EstimateExecutions
+---- -------- -------- ------ ------ ------ ---------- --------- -------- ------------- ------------ ---------- ----------- ---------- ---------------- ---------- -------- ---- -------- ------------------
+49320 1 SELECT [codigo_venta],[fecha_hora],[estado],[monto_total] FROM [dbo].[VENTA] WHERE [fecha_hora]>=@1 AND [fecha_hora]<@2 1 1 0 NULL NULL NULL NULL 49594.0 NULL NULL NULL 0.22968726 NULL NULL SELECT 0 NULL
+49320 1   |--Index Seek(OBJECT:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[IX_VENTA_fecha_cobertura]), SEEK:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora] >= '2023-01-01 00:00:00.000' AND [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora] < '2023-04-01 00:00:00.000') ORDERED FORWARD) 1 2 1 Index Seek Index Seek OBJECT:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[IX_VENTA_fecha_cobertura]), SEEK:([tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora] >= '2023-01-01 00:00:00.000' AND [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora] < '2023-04-01 00:00:00.000') ORDERED FORWARD [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] 49594.0 0.17497686 5.4710399E-2 37 0.22968726 [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[codigo_venta], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[fecha_hora], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[monto_total], [tienda_hardware_rendimiento_etapa05].[dbo].[VENTA].[estado] NULL PLAN_ROW 0 1.0
+
+(2 rows affected)
+
+ SQL Server Execution Times:
+   CPU time = 78 ms,  elapsed time = 11864 ms.
+
+(1 rows affected)
+=== Verificacion de contenido entre escenarios ===
+escenario filas suma_codigo_venta suma_monto_total min_fecha_hora max_fecha_hora
+--------- ----- ----------------- ---------------- -------------- --------------
+1 sin indice adicional 49320 44412655709160 49320000.00 2023-01-01 12:00:00.000 2023-03-31 12:00:00.000
+2 indice no agrupado de fecha 49320 44412655709160 49320000.00 2023-01-01 12:00:00.000 2023-03-31 12:00:00.000
+3 indice con cobertura 49320 44412655709160 49320000.00 2023-01-01 12:00:00.000 2023-03-31 12:00:00.000
+
+(3 rows affected)
+Los tres escenarios devolvieron exactamente el mismo conjunto: las metricas se pueden comparar.
+=== Espacio ocupado por la estructura de VENTA al terminar ===
+indice filas espacio_reservado_MB espacio_usado_MB
+------ ----- -------------------- ----------------
+PK_VENTA 1000010 49.820312 49.648437
+IX_VENTA_fecha_hora 1000010 17.585937 17.484375
+IX_VENTA_fecha_cobertura 1000010 36.898437 36.828125
+
+(3 rows affected)
+Mediciones terminadas
+Los dos indices quedan instalados en la copia de rendimiento
+Para restaurar la estructura original, ejecutar la seccion 5 de sql/tecnico/06_indices.sql
