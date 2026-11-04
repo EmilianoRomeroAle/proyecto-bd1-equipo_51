@@ -71,6 +71,7 @@ El esquema está formado por siete tablas:
 | II — Diseño conceptual y lógico | DER, transformación a tablas y normalización. | [DER conceptual](docs/etapa-02/der/der-parte1.jpeg) · [Diagrama relacional](docs/etapa-02/der/erdplus.png) · [Modelo relacional](docs/etapa-02/modelo-relacional.md) · [Normalización](docs/etapa-02/normalizacion.md) · [Decisiones de diseño](docs/etapa-02/decisiones-diseno.md) |
 | III — Implementación física | Definición de tablas, restricciones y datos de prueba. | [Implementación](docs/etapa-03/implementacion.md) · [Restricciones de integridad](docs/etapa-03/restricciones-integridad.md) · [Pruebas de validación](docs/etapa-03/pruebas-validacion.md) |
 | IV — Consultas y casos de uso | Recuperación y análisis de la información mediante SELECT. | Script de consultas y resumen de los ocho casos de uso en la sección siguiente. |
+| V — Temas técnicos | Funciones, procedimientos, transacciones y auditoría de productos. | [Procedimientos y funciones](docs/etapa-05/procedimientos_funciones.md) · [Transacciones](docs/etapa-05/transacciones.md) · [Auditoría](docs/etapa-05/auditoria.md) · [Integración y pruebas](docs/etapa-05/integracion.md). Seguridad e índices quedan a cargo de los integrantes 4 y 5. |
 
 ## Etapa IV — Consultas y casos de uso
 
@@ -95,7 +96,7 @@ C04 reúne los cobros sin unirlos con los renglones de venta. De ese modo, una v
 
 ## Organización del repositorio
 
-Esta vista resume los materiales desarrollados de las etapas I a IV.
+Esta vista resume los materiales de las etapas I a IV y los bloques de los integrantes 1, 2 y 3 de la etapa V.
 
 ```text
 proyecto-bd1-equipo_51/
@@ -104,14 +105,33 @@ proyecto-bd1-equipo_51/
 │   ├── etapa-01/
 │   ├── etapa-02/
 │   │   └── der/
-│   └── etapa-03/
+│   ├── etapa-03/
+│   ├── etapa-04/
+│   └── etapa-05/
+│       ├── procedimientos_funciones.md
+│       ├── transacciones.md
+│       ├── auditoria.md
+│       ├── integracion.md
+│       ├── equipo51_etapa05_43275213.md
+│       └── evidencias/
 └── sql/
     ├── ddl/
     │   └── crear_bd.sql
     ├── dml/
     │   └── datos_prueba.sql
-    └── consultas/
-        └── consultas.sql
+    ├── consultas/
+    │   └── consultas.sql
+    └── tecnico/
+        ├── 01_funciones.sql
+        ├── 02_registro_ventas.sql
+        ├── 03_pagos_y_vencimientos.sql
+        ├── 04_auditoria_producto.sql
+        ├── 90_datos_prueba_etapa05.sql
+        └── pruebas/
+            ├── 01_pruebas_registro_ventas.sql
+            ├── 02_pruebas_transacciones.sql
+            ├── 03_pruebas_auditoria.sql
+            └── 04_prueba_integracion.sql
 ```
 
 ## Ejecución en SQL Server
@@ -126,3 +146,64 @@ Se necesita una instancia de Microsoft SQL Server y SSMS para abrir y ejecutar l
 6. Comparar cada resultado con la referencia de la tabla de Etapa IV.
 
 Los scripts DDL y DML están preparados para crear tablas nuevas y realizar una única carga inicial. Si las tablas o los datos ya existen, volver a ejecutarlos puede producir errores por objetos o claves duplicadas.
+
+## Etapa V — Funciones, transacciones y auditoría
+
+Esta entrega incorpora los bloques de los integrantes 1, 2 y 3. El modelo comercial conserva sus siete tablas y se agrega `AUDITORIA_PRODUCTO` como tabla técnica. La seguridad por usuarios y roles y la comparación de índices todavía corresponden a los integrantes 4 y 5; la etapa V completa incluye también esos dos temas.
+
+### Objetos incorporados
+
+| Responsable | Objeto | Utilización |
+| --- | --- | --- |
+| Integrante 1 | `dbo.fn_StockDisponible(@sku)` | Calcula stock actual menos reservado; devuelve NULL si el producto no existe. |
+| Integrante 1 | `dbo.fn_TotalVenta(@codigo_venta)` | Suma cantidades por precio histórico. Devuelve NULL si la venta no existe y cero si existe sin renglones. |
+| Integrante 1 | `dbo.usp_RegistrarVentaPendiente` | Crea cabecera y primer renglón, valida disponibilidad y reserva las unidades. |
+| Integrante 1 | `dbo.usp_AgregarDetalleVenta` | Agrega un renglón a una pendiente vigente, reserva unidades y actualiza el total. |
+| Integrante 2 | `dbo.usp_RegistrarPago` | Registra o acumula pagos por método y confirma la venta al completar el importe exacto. |
+| Integrante 2 | `dbo.usp_ConfirmarVenta` | Comprueba cabecera, detalles y pagos; descuenta stock físico, retira reservas y cambia el estado a Abonado. |
+| Integrante 2 | `dbo.usp_CancelarVentasVencidas` | Cancela pendientes con 24 horas cumplidas y pago incompleto, liberando sus reservas sin aumentar stock físico. |
+| Integrante 3 | `dbo.AUDITORIA_PRODUCTO` | Conserva fecha, usuario, tipo de operación y valores anteriores y nuevos de precio y existencias. |
+| Integrante 3 | `dbo.trg_PRODUCTO_Auditoria` | Registra automáticamente cambios de precio, stock actual o stock reservado. Contempla UPDATE de varias filas. |
+
+La cabecera de una venta se crea junto con el primer renglón porque `monto_total` debe ser positivo. El precio pactado se recibe como parámetro y queda en `precio_uni_historico`; cambiar el catálogo no lo modifica. Para agregar varios productos se realizan llamadas sucesivas al procedimiento de renglones.
+
+Los procedimientos utilizan transacciones con manejo de errores. Si una sentencia falla, se revierten las modificaciones de esa operación. El último pago y la confirmación comparten la transacción: el COMMIT del procedimiento llamado no confirma por separado el pago. Un ROLLBACK revierte toda la transacción activa, incluida una iniciada por el llamador; no se implementan reversiones parciales.
+
+### Orden de instalación y demostración
+
+Después de crear las tablas y cargar una sola vez el lote de la etapa III, ejecutar:
+
+1. [01_funciones.sql](sql/tecnico/01_funciones.sql).
+2. [02_registro_ventas.sql](sql/tecnico/02_registro_ventas.sql).
+3. [03_pagos_y_vencimientos.sql](sql/tecnico/03_pagos_y_vencimientos.sql).
+4. [04_auditoria_producto.sql](sql/tecnico/04_auditoria_producto.sql).
+5. [90_datos_prueba_etapa05.sql](sql/tecnico/90_datos_prueba_etapa05.sql).
+
+Los archivos 01 a 04 permiten actualizar las definiciones sin borrar los datos. El archivo 90 agrega datos identificados como prueba y puede repetirse sin volver a insertarlos; no restablece datos que ya fueron modificados.
+
+Con esos requisitos, ejecutar las cuatro demostraciones de `sql/tecnico/pruebas/` en su orden numérico. Las pruebas comprueban resultados con consultas y detienen la ejecución si encuentran una diferencia. Las ventas de prueba utilizan códigos de las series 95100, 95200, 95300 y 95400, y los productos comienzan con `ET5-`. Cada archivo explica sus datos y su limpieza.
+
+Los scripts de entrega seleccionan `tienda_hardware`. Para probar con otro nombre hay que adaptar la creación, la carga y las instrucciones USE de las copias de ejecución. Las verificaciones de esta entrega se realizaron en una base separada llamada `tienda_hardware_etapa05_verificacion`, en SQL Server Express, conservando el lote histórico.
+
+Las salidas reales de las pruebas se encuentran en:
+
+- [Registro de ventas y funciones](docs/etapa-05/evidencias/procedimientos_funciones/resultados.txt).
+- [Pagos y transacciones](docs/etapa-05/evidencias/transacciones/resultados.txt).
+- [Auditoría](docs/etapa-05/evidencias/auditoria/resultados.txt).
+- [Circuito integrado](docs/etapa-05/evidencias/integracion/resultados.txt).
+
+Los ejemplos de las explicaciones y las pruebas no deben ejecutarse sobre los mismos códigos ocupados sin revisar sus datos. El lote de demostración agrega productos que pueden cambiar los resultados de las consultas de catálogo de IV; los resultados de referencia de esa etapa corresponden únicamente al lote original.
+
+### Alcance de los controles
+
+El circuito de procedimientos rechaza modificaciones sobre ventas abonadas o canceladas y evita confirmar dos veces la misma venta. La restricción de cambios directos del operador debe completarse con los permisos del integrante 4: estos procedimientos no impiden que un administrador modifique las tablas directamente.
+
+El vencimiento se ejecuta llamando a `dbo.usp_CancelarVentasVencidas`; no se instaló una tarea periódica. Las ventas canceladas conservan sus detalles y pagos. No se agrega un sistema de devoluciones de dinero.
+
+Las pruebas cubren operaciones secuenciales, errores, reversión y auditoría de varias filas. No representan una prueba de recuperación frente a una caída del servidor ni una validación completa de operaciones simultáneas. Las ventas abonadas del lote inicial no vuelven a descontar stock.
+
+La preparación del lote opcional para el integrante 5 y sus requisitos se detallan en [Integración](docs/etapa-05/integracion.md). Los índices y sus mediciones forman parte de su desarrollo pendiente.
+
+### Contribución individual
+
+El manifiesto del integrante 1 mantiene la estructura utilizada en la etapa IV: [equipo51_etapa05_43275213.md](docs/etapa-05/equipo51_etapa05_43275213.md). Incluye el aporte, las decisiones, las dificultades, las soluciones, las referencias a archivos y la reflexión de esta etapa.
