@@ -149,7 +149,7 @@ Los scripts DDL y DML están preparados para crear tablas nuevas y realizar una 
 
 ## Etapa V — Funciones, transacciones y auditoría
 
-Esta entrega incorpora los bloques de los integrantes 1, 2 y 3. El modelo comercial conserva sus siete tablas y se agrega `AUDITORIA_PRODUCTO` como tabla técnica. La seguridad por usuarios y roles y la comparación de índices todavía corresponden a los integrantes 4 y 5; la etapa V completa incluye también esos dos temas.
+El modelo comercial conserva sus siete tablas y se agrega `AUDITORIA_PRODUCTO` como tabla técnica. La seguridad por usuarios y roles y la comparación de índices quedan pendientes de actualizacion; la etapa V completa incluye también esos dos temas.
 
 ### Objetos incorporados
 
@@ -183,7 +183,7 @@ Los archivos 01 a 04 permiten actualizar las definiciones sin borrar los datos. 
 
 Con esos requisitos, ejecutar las cuatro demostraciones de `sql/tecnico/pruebas/` en su orden numérico. Las pruebas comprueban resultados con consultas y detienen la ejecución si encuentran una diferencia. Las ventas de prueba utilizan códigos de las series 95100, 95200, 95300 y 95400, y los productos comienzan con `ET5-`. Cada archivo explica sus datos y su limpieza.
 
-Los scripts de entrega seleccionan `tienda_hardware`. Para probar con otro nombre hay que adaptar la creación, la carga y las instrucciones USE de las copias de ejecución. Las verificaciones de esta entrega se realizaron en una base separada llamada `tienda_hardware_etapa05_verificacion`, en SQL Server Express, conservando el lote histórico.
+Los scripts de entrega seleccionan `tienda_hardware`. Para probar con otro nombre hay que adaptar la creación, la carga y las instrucciones USE de las copias de ejecución.
 
 Las salidas reales de las pruebas se encuentran en:
 
@@ -193,17 +193,3 @@ Las salidas reales de las pruebas se encuentran en:
 - [Circuito integrado](docs/etapa-05/evidencias/integracion/resultados.txt).
 
 Los ejemplos de las explicaciones y las pruebas no deben ejecutarse sobre los mismos códigos ocupados sin revisar sus datos. El lote de demostración agrega productos que pueden cambiar los resultados de las consultas de catálogo de IV; los resultados de referencia de esa etapa corresponden únicamente al lote original.
-
-### Alcance de los controles
-
-El circuito de procedimientos rechaza modificaciones sobre ventas abonadas o canceladas y evita confirmar dos veces la misma venta. La restricción de cambios directos del operador debe completarse con los permisos del integrante 4: estos procedimientos no impiden que un administrador modifique las tablas directamente.
-
-El vencimiento se ejecuta llamando a `dbo.usp_CancelarVentasVencidas`; no se instaló una tarea periódica. Las ventas canceladas conservan sus detalles y pagos. No se agrega un sistema de devoluciones de dinero.
-
-Las pruebas cubren operaciones secuenciales, errores, reversión y auditoría de varias filas. No representan una prueba de recuperación frente a una caída del servidor ni una validación completa de operaciones simultáneas. Las ventas abonadas del lote inicial no vuelven a descontar stock.
-
-La preparación del lote opcional para el integrante 5 y sus requisitos se detallan en [Integración](docs/etapa-05/integracion.md). Los índices y sus mediciones forman parte de su desarrollo pendiente.
-
-### Contribución individual
-
-El manifiesto del integrante 1 mantiene la estructura utilizada en la etapa IV: [equipo51_etapa05_43275213.md](docs/etapa-05/equipo51_etapa05_43275213.md). Incluye el aporte, las decisiones, las dificultades, las soluciones, las referencias a archivos y la reflexión de esta etapa.
